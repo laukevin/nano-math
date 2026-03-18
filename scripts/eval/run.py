@@ -26,8 +26,11 @@ from scripts.eval.extraction import extract_answer, normalize_answer
 from scripts.eval.data import format_eval_prompt, SUITE_DATASETS
 
 
-def load_nanochat_model(model_tag: str, step: int | None, device: str):
-    """Load a nanochat checkpoint using nanochat's own loader."""
+def load_nanochat_model(model_tag: str, step: int | None, device: str, phase: str = "base"):
+    """Load a nanochat checkpoint using nanochat's own loader.
+
+    phase: "base" for pretrained, "mathsft" for our math SFT checkpoints.
+    """
     # Add nanochat to path
     nanochat_dir = PROJECT_ROOT / "vendor" / "nanochat"
     sys.path.insert(0, str(nanochat_dir))
@@ -40,11 +43,38 @@ def load_nanochat_model(model_tag: str, step: int | None, device: str):
 
     device_obj = torch.device(device)
 
-    # load_model returns (model, tokenizer, meta)
-    model, tokenizer, meta = load_model(
-        "base", device_obj, phase="eval",
-        model_tag=model_tag, step=step,
-    )
+    if phase == "mathsft":
+        # Load base model structure, then overlay SFT weights
+        model, tokenizer, meta = load_model(
+            "base", device_obj, phase="eval",
+            model_tag=model_tag, step=None,
+        )
+        # Load our math SFT weights
+        sft_dir = Path.home() / ".cache" / "nanochat" / "mathsft_checkpoints" / model_tag
+        if step is None:
+            # Find latest step
+            pts = sorted(sft_dir.glob("model_*.pt"))
+            if not pts:
+                raise FileNotFoundError(f"No mathsft checkpoints in {sft_dir}")
+            sft_path = pts[-1]
+        else:
+            sft_path = sft_dir / f"model_{step:06d}.pt"
+        print(f"Loading math SFT weights from {sft_path}")
+        state_dict = torch.load(sft_path, map_location=device_obj, weights_only=True)
+        model.load_state_dict(state_dict)
+        # Load SFT metadata
+        meta_path = sft_path.with_name(sft_path.name.replace("model_", "meta_").replace(".pt", ".json"))
+        if meta_path.exists():
+            import json
+            with open(meta_path) as f:
+                sft_meta = json.load(f)
+            meta.update(sft_meta)
+    else:
+        model, tokenizer, meta = load_model(
+            "base", device_obj, phase="eval",
+            model_tag=model_tag, step=step,
+        )
+
     model.eval()
     n_params = sum(p.numel() for p in model.parameters())
     return model, tokenizer, device, n_params, meta
@@ -216,15 +246,16 @@ def main():
     parser = argparse.ArgumentParser(description="Run math eval on nanochat checkpoint")
     parser.add_argument("--model-tag", type=str, default=None, help="nanochat model tag (e.g. d2)")
     parser.add_argument("--step", type=int, default=None, help="checkpoint step (default=latest)")
+    parser.add_argument("--phase", type=str, default="base", choices=["base", "mathsft"], help="checkpoint phase (base=pretrain, mathsft=math SFT)")
     parser.add_argument("--device", type=str, default="auto", help="device (auto/cpu/mps/cuda)")
     parser.add_argument("--max-tokens", type=int, default=256, help="max generation tokens")
     parser.add_argument("--n-problems", type=int, default=10, help="number of problems to eval")
     parser.add_argument("--output", type=str, default=None, help="save results JSON to this path")
     args = parser.parse_args()
 
-    print(f"Loading model (tag={args.model_tag}, step={args.step})...")
+    print(f"Loading model (tag={args.model_tag}, step={args.step}, phase={args.phase})...")
     model, tokenizer, device, n_params, meta = load_nanochat_model(
-        args.model_tag, args.step, args.device
+        args.model_tag, args.step, args.device, phase=args.phase
     )
     print(f"  Device: {device}")
     print(f"  Params: {n_params:,}")
