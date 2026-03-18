@@ -1,11 +1,18 @@
-"""Root conftest — shared fixtures for all tests."""
+"""Root conftest — shared fixtures and path setup for all tests."""
 
 from __future__ import annotations
 
 import json
+import os
+import sys
 from pathlib import Path
 
 import pytest
+
+# Add project root to path so `math_nano` and `scripts` are importable
+project_root = os.path.dirname(os.path.dirname(__file__))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

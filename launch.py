@@ -2,47 +2,222 @@
 
 Usage:
     uv run python launch.py run --config configs/experiments/sft-m-concise.yaml
-    uv run python launch.py smoke-test --depth 10
+    uv run python launch.py batch --configs configs/experiments/sft-m-*.yaml
+    uv run python launch.py sweep --mixture mix-math-broad --stage pretrain
     uv run python launch.py status
     uv run python launch.py gate --check pretrain_to_sft
     uv run python launch.py eval --checkpoint $CKPT --depth 16 --suite small
     uv run python launch.py compare --checkpoint-a $A --checkpoint-b $B --depth 16
     uv run python launch.py check-leakage --train-dir data/tokenized
-    uv run python launch.py compile --results-dir results/eval/
+    uv run python launch.py compile
+    uv run python launch.py compile-eval --results-dir results/eval/
     uv run python launch.py plot --data results/compiled/full_results.csv --all
+    uv run python launch.py summarize --phase 1
 """
 
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import logging
 import sys
 from pathlib import Path
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Existing commands (stubs)
-# ---------------------------------------------------------------------------
+def _load_config_from_yaml(path: str) -> "ExperimentConfig":
+    """Load an ExperimentConfig from a YAML file."""
+    import yaml
+
+    from harness.config import ExperimentConfig
+
+    with open(path) as f:
+        data = yaml.safe_load(f)
+
+    return ExperimentConfig(**data)
+
+
+def _load_config_from_args(args: argparse.Namespace) -> "ExperimentConfig":
+    """Build an ExperimentConfig from CLI args."""
+    from harness.config import ExperimentConfig
+
+    kwargs = {}
+    for field_name in [
+        "experiment_id", "stage", "phase", "depth", "device",
+        "mixture", "token_multiplier", "sft_recipe", "sft_epochs",
+        "sft_lr", "sft_max_seq_len", "parent_checkpoint", "gpu",
+        "timeout_hours", "wandb_mode", "eval_suite", "eval_every",
+    ]:
+        val = getattr(args, field_name, None)
+        if val is not None:
+            kwargs[field_name] = val
+
+    if "experiment_id" not in kwargs:
+        kwargs["experiment_id"] = getattr(args, "experiment", None) or "unnamed"
+    if "phase" not in kwargs:
+        kwargs["phase"] = "1a"
+
+    return ExperimentConfig(**kwargs)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Training commands
+# ═══════════════════════════════════════════════════════════════════
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    """Run an experiment."""
-    print("[launch] run: not yet implemented")
-    print(f"  config={args.config}, stage={args.stage}, depth={args.depth}")
+    """Run a single experiment."""
+    from harness.runner import ExperimentRunner
+
+    if args.config:
+        config = _load_config_from_yaml(args.config)
+    else:
+        config = _load_config_from_args(args)
+
+    logger.info("Running experiment: %s", config.experiment_id)
+
+    runner = ExperimentRunner(
+        force=getattr(args, "force", False),
+        dry_run=getattr(args, "dry_run", False),
+    )
+    result, eval_results = runner.run(config)
+
+    logger.info("Experiment %s completed.", config.experiment_id)
+    if eval_results:
+        logger.info("Eval results: %s", json.dumps(eval_results, indent=2))
 
 
-def cmd_smoke_test(args: argparse.Namespace) -> None:
-    """Run smoke tests."""
-    print("[launch] smoke-test: not yet implemented")
-    print(f"  depth={args.depth}, device={args.device}")
+def cmd_batch(args: argparse.Namespace) -> None:
+    """Run multiple experiments from config files."""
+    from harness.experiment_state import ExperimentState
+    from harness.runner import ExperimentRunner
+
+    patterns = args.configs.split(",") if args.configs else []
+    config_files = []
+    for pattern in patterns:
+        config_files.extend(sorted(glob.glob(pattern)))
+
+    if not config_files:
+        logger.error("No config files matched: %s", args.configs)
+        sys.exit(1)
+
+    logger.info("Batch: %d config files", len(config_files))
+
+    configs = [_load_config_from_yaml(f) for f in config_files]
+
+    # Show cost estimate
+    from harness.runner import estimate_cost
+
+    total_cost = sum(estimate_cost(c) for c in configs)
+    logger.info("Estimated total cost: $%.2f", total_cost)
+
+    if args.dry_run:
+        for c in configs:
+            cost = estimate_cost(c)
+            print(f"  {c.experiment_id}: {c.stage} depth={c.depth} (~${cost:.2f})")
+        return
+
+    # Update state with pending
+    state = ExperimentState.load()
+    state.add_pending([c.experiment_id for c in configs])
+    state.save()
+
+    runner = ExperimentRunner(force=getattr(args, "force", False))
+    for config in configs:
+        try:
+            state.mark_running(config.experiment_id)
+            state.save()
+            runner.run(config)
+        except Exception as e:
+            logger.error("Experiment %s failed: %s", config.experiment_id, e)
+            state.mark_failed(config.experiment_id)
+            state.save()
+            if not args.continue_on_error:
+                raise
+
+
+def cmd_sweep(args: argparse.Namespace) -> None:
+    """Run a config across all model sizes."""
+    from harness.config import VALID_DEPTHS
+    from harness.runner import ExperimentRunner, estimate_cost
+
+    depths = VALID_DEPTHS
+    stage = args.stage
+
+    configs = []
+    for depth in depths:
+        from harness.search import _depth_label
+
+        eid = f"{stage[:2]}-{_depth_label(depth)}-{args.mixture or args.recipe or 'sweep'}"
+        config_kwargs = {
+            "experiment_id": eid,
+            "stage": stage,
+            "phase": args.phase or "1a",
+            "depth": depth,
+        }
+        if args.mixture:
+            config_kwargs["mixture"] = args.mixture
+        if args.recipe:
+            config_kwargs["sft_recipe"] = args.recipe
+        if args.parent:
+            config_kwargs["parent_checkpoint"] = args.parent
+
+        from harness.config import ExperimentConfig
+
+        configs.append(ExperimentConfig(**config_kwargs))
+
+    total_cost = sum(estimate_cost(c) for c in configs)
+    logger.info("Sweep: %d experiments, estimated $%.2f", len(configs), total_cost)
+
+    if args.dry_run:
+        for c in configs:
+            cost = estimate_cost(c)
+            print(f"  {c.experiment_id}: depth={c.depth} (~${cost:.2f})")
+        return
+
+    runner = ExperimentRunner(force=getattr(args, "force", False))
+    for config in configs:
+        try:
+            runner.run(config)
+        except Exception as e:
+            logger.error("Sweep experiment %s failed: %s", config.experiment_id, e)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Status and gates
+# ═══════════════════════════════════════════════════════════════════
 
 
 def cmd_status(args: argparse.Namespace) -> None:
     """Show experiment status."""
-    print("[launch] status: not yet implemented")
+    from harness.experiment_state import ExperimentState
+
+    state = ExperimentState.load()
+
+    if args.experiment:
+        # Show single experiment details
+        eid = args.experiment
+        if eid in state.completed_experiments:
+            print(f"{eid}: completed")
+        elif eid in state.running_experiments:
+            print(f"{eid}: running")
+        elif eid in state.pending_experiments:
+            print(f"{eid}: pending")
+        else:
+            print(f"{eid}: not found in state")
+        return
+
+    print(state.summary())
+
+    if state.completed_experiments:
+        print(f"\nCompleted: {', '.join(state.completed_experiments)}")
+    if state.running_experiments:
+        print(f"Running: {', '.join(state.running_experiments)}")
+    if state.pending_experiments:
+        print(f"Pending: {', '.join(state.pending_experiments)}")
 
 
 def cmd_gate(args: argparse.Namespace) -> None:
@@ -63,9 +238,15 @@ def cmd_gate(args: argparse.Namespace) -> None:
     sys.exit(0 if result.passed else 1)
 
 
-# ---------------------------------------------------------------------------
+def cmd_smoke_test(args: argparse.Namespace) -> None:
+    """Run smoke tests."""
+    print("[launch] smoke-test: not yet implemented")
+    print(f"  depth={args.depth}, device={args.device}")
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Eval
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════
 
 
 def cmd_eval(args: argparse.Namespace) -> None:
@@ -81,10 +262,8 @@ def cmd_eval(args: argparse.Namespace) -> None:
     from scripts.eval.inference import load_model, resolve_device
     from scripts.eval.wandb_logger import log_to_wandb
 
-    # Resolve datasets
     datasets = args.datasets or SUITE_DATASETS[args.suite]
 
-    # Warn about full eval on CPU
     resolved_device = resolve_device(args.device)
     if resolved_device == "cpu" and args.suite == "full":
         logger.warning(
@@ -96,7 +275,6 @@ def cmd_eval(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load eval data
     logger.info("Loading eval datasets: %s", datasets)
     eval_data: dict[str, list[dict]] = {}
     for ds_name in datasets:
@@ -105,7 +283,6 @@ def cmd_eval(args: argparse.Namespace) -> None:
 
     manifest_sha = get_manifest_sha(data_dir)
 
-    # Load model
     logger.info("Loading checkpoint: %s", args.checkpoint)
     model, tokenizer, device, model_params = load_model(
         args.checkpoint, args.depth, args.device
@@ -115,7 +292,6 @@ def cmd_eval(args: argparse.Namespace) -> None:
         args.depth, model_params, device,
     )
 
-    # Determine generation params
     if args.mode == "greedy":
         temperature = GREEDY_TEMPERATURE
         n_samples = 1
@@ -123,7 +299,6 @@ def cmd_eval(args: argparse.Namespace) -> None:
         temperature = SAMPLED_TEMPERATURE
         n_samples = args.samples
 
-    # Evaluate each dataset
     dataset_results: dict[str, dict] = {}
     for ds_name, problems in eval_data.items():
         logger.info(
@@ -146,7 +321,6 @@ def cmd_eval(args: argparse.Namespace) -> None:
         if "pass_at_1_sampled" in ds_r:
             logger.info("  %s pass@1 (sampled): %.3f", ds_name, ds_r["pass_at_1_sampled"])
 
-    # Build output
     output_json = build_output_json(
         checkpoint=args.checkpoint, depth=args.depth,
         model_params=model_params, suite=args.suite,
@@ -163,11 +337,6 @@ def cmd_eval(args: argparse.Namespace) -> None:
     if args.wandb:
         log_to_wandb(output_json, output_path, project=args.wandb_project)
         logger.info("Results logged to W&B")
-
-
-# ---------------------------------------------------------------------------
-# Compare
-# ---------------------------------------------------------------------------
 
 
 def cmd_compare(args: argparse.Namespace) -> None:
@@ -213,11 +382,6 @@ def cmd_compare(args: argparse.Namespace) -> None:
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         Path(args.output).write_text(json.dumps(output, indent=2))
         logger.info("Comparison saved to %s", args.output)
-
-
-# ---------------------------------------------------------------------------
-# Check leakage
-# ---------------------------------------------------------------------------
 
 
 def cmd_check_leakage(args: argparse.Namespace) -> None:
@@ -272,13 +436,57 @@ def cmd_check_leakage(args: argparse.Namespace) -> None:
     logger.info("Report saved to %s", output_path)
 
 
-# ---------------------------------------------------------------------------
-# Compile
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════
+# Results & visualization
+# ═══════════════════════════════════════════════════════════════════
 
 
 def cmd_compile(args: argparse.Namespace) -> None:
-    """Compile eval results into CSV."""
+    """Compile all results from model registry into summary CSVs."""
+    from harness.bookkeeper import ModelRegistry
+
+    registry = ModelRegistry()
+    models = registry.models
+
+    if not models:
+        print("No models registered yet.")
+        return
+
+    rows = []
+    for model_id, model in models.items():
+        row = {
+            "model_id": model_id,
+            "experiment_id": model.get("experiment_id"),
+            "stage": model.get("stage"),
+            "depth": model.get("depth"),
+            "parent": model.get("parent_model"),
+        }
+        for k, v in model.get("eval_results", {}).items():
+            row[k] = v
+        training = model.get("training", {})
+        row["cost_usd"] = training.get("cost_usd")
+        row["wall_clock_hours"] = training.get("wall_clock_hours")
+        rows.append(row)
+
+    output_dir = Path("results/compiled")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "full_results.json"
+    output_path.write_text(json.dumps(rows, indent=2) + "\n")
+    logger.info("Compiled %d models → %s", len(rows), output_path)
+
+    try:
+        import pandas as pd
+
+        df = pd.DataFrame(rows)
+        csv_path = output_dir / "full_results.csv"
+        df.to_csv(csv_path, index=False)
+        logger.info("CSV → %s", csv_path)
+    except ImportError:
+        pass
+
+
+def cmd_compile_eval(args: argparse.Namespace) -> None:
+    """Compile eval JSON files into flat CSV."""
     from scripts.results.compile import compile_results
 
     df = compile_results(Path(args.results_dir), Path(args.output))
@@ -293,11 +501,6 @@ def cmd_compile(args: argparse.Namespace) -> None:
                 .agg(["mean", "min", "max", "count"])
                 .to_string()
             )
-
-
-# ---------------------------------------------------------------------------
-# Plot
-# ---------------------------------------------------------------------------
 
 
 def cmd_plot(args: argparse.Namespace) -> None:
@@ -328,17 +531,41 @@ def cmd_plot(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-# ---------------------------------------------------------------------------
+def cmd_summarize(args: argparse.Namespace) -> None:
+    """Generate a summary for a phase."""
+    from harness.bookkeeper import ModelRegistry
+    from harness.experiment_state import ExperimentState
+
+    state = ExperimentState.load()
+    registry = ModelRegistry()
+
+    phase = args.phase
+    print(f"=== Phase {phase} Summary ===\n")
+    print(state.summary())
+    print()
+
+    models = registry.models
+    phase_models = {
+        mid: m for mid, m in models.items()
+        if str(phase) in m.get("experiment_id", "")
+    }
+
+    if phase_models:
+        print(f"Models registered: {len(phase_models)}")
+        for mid, m in phase_models.items():
+            eval_r = m.get("eval_results", {})
+            gsm8k = eval_r.get("gsm8k_pass1_greedy", "n/a")
+            print(f"  {mid}: gsm8k={gsm8k}")
+    else:
+        print("No models registered for this phase yet.")
+
+
+# ═══════════════════════════════════════════════════════════════════
 # CLI
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-
     parser = argparse.ArgumentParser(description="math-nano experiment launcher")
     sub = parser.add_subparsers(dest="command")
 
@@ -348,14 +575,32 @@ def main() -> None:
     p_run.add_argument("--stage", choices=["pretrain", "sft", "grpo"])
     p_run.add_argument("--depth", type=int)
     p_run.add_argument("--experiment", help="Experiment ID")
+    p_run.add_argument("--mixture", help="Data mixture (pretrain)")
+    p_run.add_argument("--sft-recipe", dest="sft_recipe", help="SFT recipe")
+    p_run.add_argument("--parent", dest="parent_checkpoint", help="Parent checkpoint")
+    p_run.add_argument("--force", action="store_true", help="Skip validation")
+    p_run.add_argument("--dry-run", action="store_true", dest="dry_run")
+    p_run.add_argument("--wandb-mode", dest="wandb_mode", default="online")
     p_run.set_defaults(func=cmd_run)
 
-    # smoke-test
-    p_smoke = sub.add_parser("smoke-test", help="Run smoke tests")
-    p_smoke.add_argument("--depth", type=int, default=10)
-    p_smoke.add_argument("--device", default="cpu")
-    p_smoke.add_argument("--all", action="store_true")
-    p_smoke.set_defaults(func=cmd_smoke_test)
+    # batch
+    p_batch = sub.add_parser("batch", help="Run multiple experiments")
+    p_batch.add_argument("--configs", required=True, help="Glob pattern(s) for YAML configs")
+    p_batch.add_argument("--dry-run", action="store_true", dest="dry_run")
+    p_batch.add_argument("--force", action="store_true")
+    p_batch.add_argument("--continue-on-error", action="store_true", dest="continue_on_error")
+    p_batch.set_defaults(func=cmd_batch)
+
+    # sweep
+    p_sweep = sub.add_parser("sweep", help="Sweep a config across all model sizes")
+    p_sweep.add_argument("--stage", required=True, choices=["pretrain", "sft", "grpo"])
+    p_sweep.add_argument("--mixture", help="Data mixture (pretrain)")
+    p_sweep.add_argument("--recipe", help="SFT recipe")
+    p_sweep.add_argument("--parent", help="Parent checkpoint")
+    p_sweep.add_argument("--phase", default="1a")
+    p_sweep.add_argument("--dry-run", action="store_true", dest="dry_run")
+    p_sweep.add_argument("--force", action="store_true")
+    p_sweep.set_defaults(func=cmd_sweep)
 
     # status
     p_status = sub.add_parser("status", help="Show experiment status")
@@ -366,6 +611,13 @@ def main() -> None:
     p_gate = sub.add_parser("gate", help="Check validation gates")
     p_gate.add_argument("--check", required=True, help="Gate name to check")
     p_gate.set_defaults(func=cmd_gate)
+
+    # smoke-test
+    p_smoke = sub.add_parser("smoke-test", help="Run smoke tests")
+    p_smoke.add_argument("--depth", type=int, default=10)
+    p_smoke.add_argument("--device", default="cpu")
+    p_smoke.add_argument("--all", action="store_true")
+    p_smoke.set_defaults(func=cmd_smoke_test)
 
     # eval
     p_eval = sub.add_parser("eval", help="Run eval on a checkpoint")
@@ -405,11 +657,15 @@ def main() -> None:
     p_leak.add_argument("--output", default="results/leakage_report.json")
     p_leak.set_defaults(func=cmd_check_leakage)
 
-    # compile
-    p_comp = sub.add_parser("compile", help="Compile eval results into CSV")
-    p_comp.add_argument("--results-dir", default="results/eval")
-    p_comp.add_argument("--output", default="results/compiled/full_results.csv")
-    p_comp.set_defaults(func=cmd_compile)
+    # compile (from model registry)
+    p_compile = sub.add_parser("compile", help="Compile results from model registry")
+    p_compile.set_defaults(func=cmd_compile)
+
+    # compile-eval (from eval JSONs)
+    p_comp_eval = sub.add_parser("compile-eval", help="Compile eval JSON files into CSV")
+    p_comp_eval.add_argument("--results-dir", default="results/eval")
+    p_comp_eval.add_argument("--output", default="results/compiled/full_results.csv")
+    p_comp_eval.set_defaults(func=cmd_compile_eval)
 
     # plot
     p_plot = sub.add_parser("plot", help="Generate result plots")
@@ -426,6 +682,11 @@ def main() -> None:
     p_plot.add_argument("--metric", default="pass_at_1_greedy")
     p_plot.add_argument("--dataset", default="gsm8k")
     p_plot.set_defaults(func=cmd_plot)
+
+    # summarize
+    p_summarize = sub.add_parser("summarize", help="Generate phase summary")
+    p_summarize.add_argument("--phase", required=True, help="Phase number")
+    p_summarize.set_defaults(func=cmd_summarize)
 
     args = parser.parse_args()
     if not args.command:

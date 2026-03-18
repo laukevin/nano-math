@@ -1,6 +1,7 @@
 data/raw/
 data/tokenized/
 data/sft/
+data/sample/
 checkpoints/
 results/eval/
 results/compiled/
