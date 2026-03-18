@@ -123,9 +123,58 @@ Metrics reported:
 
 Results saved as JSON in `logs/`. Compare pretrain vs SFT stages.
 
+## Modal (Cloud GPU) Workflow
+
+Code lives in `modal_jobs/common.py` (image, volumes, app) and `modal_jobs/train.py` (functions).
+Reference docs at `docs/modal_reference.md`.
+
+### Running on Modal
+```bash
+# Smoke test (5 steps, T4)
+uv run modal run modal_jobs/train.py::run_pretrain --depth 2 --num-iterations 5 --save-every 5 --run-name dummy
+
+# Real pretrain (use A10G+ for bf16 support)
+uv run modal run --detach modal_jobs/train.py::run_pretrain --depth 4 --save-every 100 --run-name d4-pretrain
+
+# Math SFT
+uv run modal run --detach modal_jobs/train.py::run_math_sft --model-tag d4
+
+# Math eval
+uv run modal run modal_jobs/train.py::run_math_eval --model-tag d4 --phase base
+```
+
+Use `--detach` for long runs so the job survives client disconnect.
+
+### Architecture decisions (things that broke and why)
+- **Image uses `add_local_dir()`** not `modal.Mount` (removed in Modal 1.x)
+- **`modal_jobs/` mounted separately** at `/root/modal_jobs/` — Modal only auto-mounts the entrypoint file, not sibling packages
+- **Tokenizer mounted from local** `~/.cache/nanochat/tokenizer/` → `/root/.cache/nanochat/tokenizer/` (small files, baked into image)
+- **Training data uses a Volume** (`/data`) — too large to mount. Downloaded on first run via `nanochat.dataset -n 10`, persisted across runs. `NANOCHAT_BASE_DIR=/data` tells nanochat to look there
+- **Python 3.12** required — torch 2.10 has a typing bug on 3.11 (`CSE` generic)
+- **`WANDB_SECRET = None`** — set to `modal.Secret.from_name("wandb-secret")` once you create it on Modal. Training uses `WANDB_MODE=disabled` in the meantime
+- **T4 doesn't support bf16** — eval crashes with dtype mismatch (float32 query vs bf16 kv). Use A10G or better for real runs
+- **`--window-pattern=L --pos-encoding=nope`** hardcoded in `run_pretrain` — matches our local config
+- **`ignore` patterns** in `add_local_dir()` — uses glob patterns (not lambdas). Excludes `.venv`, `.git`, `__pycache__`, `wandb`, `checkpoints`, `data/raw`, `data/tokenized`, `logs`
+
+### Modal Volumes
+- `math-nano-checkpoints` → `/checkpoints` (model saves)
+- `math-nano-data` → `/data` (training data, tokenizer copy)
+- `math-nano-results` → `/results` (eval outputs)
+
+Must call `vol.commit()` after writing — writes are NOT auto-persisted.
+
+### GPU options
+- **T4**: Cheapest, no bf16, good for smoke tests only
+- **A10G**: bf16 support, good for depth-2/4 training
+- **A100/H100**: For larger models or faster iteration
+
 ## Project structure
 - `vendor/nanochat/` — training framework (submodule, patched with NoPE)
+- `modal_jobs/common.py` — Modal app, image, volumes, secrets
+- `modal_jobs/train.py` — Modal functions: run_pretrain, run_math_sft, run_math_eval
+- `docs/modal_reference.md` — Modal API reference and patterns
 - `scripts/status.sh` — training status, plot, eval results, cleanup
+- `scripts/math_sft.py` — our math SFT script (replaces nanochat's NaN-prone chat_sft)
 - `scripts/data/prepare_sft.py` — math SFT data prep (5 recipes)
 - `scripts/eval/run.py` — math eval bridge (loads nanochat checkpoint, runs GSM8K)
 - `scripts/eval/` — eval pipeline (extraction, pass@k, reward)

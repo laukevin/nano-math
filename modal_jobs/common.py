@@ -19,35 +19,49 @@ try:
         "/results": vol_results,
     }
 
-    # Mount the project code into the container
     project_root = Path(__file__).parent.parent
-    code_mount = modal.Mount.from_local_dir(
-        project_root,
-        remote_path="/root/math-nano",
-        condition=lambda path: not any(
-            part in path for part in [
-                ".venv", "__pycache__", ".git", "wandb",
-                "checkpoints", "data/raw", "data/tokenized",
-            ]
-        ),
-    )
 
     # Single image for all training jobs
+    # Matches nanochat's pyproject.toml dependencies
     train_image = (
-        modal.Image.debian_slim(python_version="3.11")
+        modal.Image.debian_slim(python_version="3.12")
         .pip_install(
-            "torch==2.4.0",
-            "transformers>=4.40.0",
-            "datasets>=2.18.0",
-            "trl>=0.8.0",
+            "torch>=2.4.0",
+            "transformers>=4.50.0",
+            "datasets>=4.0.0",
             "wandb>=0.16.0",
-            "tiktoken>=0.6.0",
+            "tiktoken>=0.11.0",
+            "tokenizers>=0.22.0",
+            "rustbpe>=0.1.0",
             "numpy>=1.26.0",
             "huggingface-hub>=0.22.0",
+            "scipy>=1.15.0",
+            "tabulate>=0.9.0",
+            "regex>=2024.0.0",
+            "zstandard>=0.25.0",
+        )
+        .add_local_dir(
+            str(project_root),
+            remote_path="/root/math-nano",
+            ignore=[
+                "**/.venv/**", "**/__pycache__/**", "**/.git/**",
+                "**/wandb/**", "**/checkpoints/**",
+                "data/raw/**", "data/tokenized/**", "logs/**",
+            ],
+        )
+        .add_local_dir(
+            str(project_root / "modal_jobs"),
+            remote_path="/root/modal_jobs",
+        )
+        .add_local_dir(
+            str(Path.home() / ".cache" / "nanochat" / "tokenizer"),
+            remote_path="/root/.cache/nanochat/tokenizer",
         )
     )
 
-    WANDB_SECRET = modal.Secret.from_name("wandb-secret")
+    # Set to None if you haven't created the secret on Modal yet.
+    # Create at: https://modal.com/secrets/create?secret_name=wandb-secret
+    WANDB_SECRET = None
 
 except ImportError:
     # Modal not installed — stubs for import compatibility
@@ -58,4 +72,3 @@ except ImportError:
     VOLUME_MOUNTS = {}
     train_image = None
     WANDB_SECRET = None
-    code_mount = None
