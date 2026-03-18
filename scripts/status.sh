@@ -1,15 +1,16 @@
 #!/bin/bash
 # Training status & management
 # Usage:
-#   ./scripts/status.sh              # check status (default log: /tmp/pretrain_d2.log)
+#   ./scripts/status.sh              # check status (default log: logs/train.log)
 #   ./scripts/status.sh [logfile]    # check status with custom log
 #   ./scripts/status.sh cleanup      # kill zombie/duplicate training processes
+#   ./scripts/status.sh plot [log]   # terminal loss curve plot
 
 set -e
 
 # --- cleanup mode ---
 if [ "$1" = "cleanup" ]; then
-    PIDS=$(pgrep -f "scripts\.(base_train|chat_sft|chat_rl)" 2>/dev/null || true)
+    PIDS=$(pgrep -f "scripts\.(base_train|chat_sft|chat_rl|base_eval)" 2>/dev/null || true)
     if [ -z "$PIDS" ]; then
         echo "No training processes found"
         exit 0
@@ -27,7 +28,7 @@ if [ "$1" = "cleanup" ]; then
         kill $PIDS 2>/dev/null || true
         sleep 2
         # force kill stragglers
-        REMAINING=$(pgrep -f "scripts\.(base_train|chat_sft|chat_rl)" 2>/dev/null || true)
+        REMAINING=$(pgrep -f "scripts\.(base_train|chat_sft|chat_rl|base_eval)" 2>/dev/null || true)
         if [ -n "$REMAINING" ]; then
             kill -9 $REMAINING 2>/dev/null || true
         fi
@@ -38,11 +39,57 @@ if [ "$1" = "cleanup" ]; then
     exit 0
 fi
 
+# --- plot mode ---
+if [ "$1" = "plot" ]; then
+    PLOG="${2:-logs/train.log}"
+    python3 << PYEOF
+import re
+steps, losses = [], []
+with open("$PLOG") as f:
+    for line in f:
+        m = re.match(r"step (\d+)/\d+.*loss: ([0-9.]+)", line)
+        if m:
+            steps.append(int(m.group(1)))
+            losses.append(float(m.group(2)))
+if not steps:
+    print("No training data in log"); exit()
+W, H = 60, 18
+mn, mx = min(losses), max(losses)
+grid = [[' ']*W for _ in range(H)]
+for s, l in zip(steps, losses):
+    x = int((s - steps[0]) / max(steps[-1] - steps[0], 1) * (W - 1))
+    y = H - 1 - int((l - mn) / max(mx - mn, 1) * (H - 1))
+    grid[y][x] = '\u2588'
+BAR = '\u2500' * W
+print(f"\n  Loss curve ({len(steps)} steps)")
+print(f"  {BAR}")
+for i, row in enumerate(grid):
+    if i == 0: lab = f"{mx:.1f}"
+    elif i == H-1: lab = f"{mn:.1f}"
+    elif i == H//2: lab = f"{(mx+mn)/2:.1f}"
+    else: lab = ""
+    rowstr = ''.join(row)
+    print(f"{lab:>6} \u2502{rowstr}\u2502")
+BBAR = '\u2500' * W
+print(f"       \u2514{BBAR}\u2518")
+pad1 = ' ' * (W//2 - 2)
+pad2 = ' ' * (W//2 - 5)
+print(f"        0{pad1}step{pad2}{steps[-1]}")
+delta = losses[0]-losses[-1]
+print(f"\n  {losses[0]:.2f} \u2192 {losses[-1]:.2f} (\u0394 {delta:.2f})")
+with open("$PLOG") as f:
+    vals = [l.strip() for l in f if "Validation bpb:" in l]
+if vals:
+    print(f"  Val: {vals[-1]}")
+PYEOF
+    exit 0
+fi
+
 # --- status mode ---
-LOG="${1:-/tmp/pretrain_d2.log}"
+LOG="${1:-logs/train.log}"
 
 echo "=== PROCESS ==="
-PIDS=$(pgrep -f "scripts\.(base_train|chat_sft|chat_rl)" 2>/dev/null || true)
+PIDS=$(pgrep -f "scripts\.(base_train|chat_sft|chat_rl|base_eval)" 2>/dev/null || true)
 if [ -z "$PIDS" ]; then
     echo "No training process running"
     RUNNING=false
@@ -95,11 +142,31 @@ if [ -f "$LOG" ]; then
     fi
 
     # Validation results
-    VAL=$(grep -E "Validation bpb:" "$LOG" | tail -1)
-    if [ -n "$VAL" ]; then
+    VALS=$(grep -E "Validation bpb:" "$LOG" 2>/dev/null || true)
+    if [ -n "$VALS" ]; then
         echo ""
         echo "=== VALIDATION ==="
-        echo "$VAL"
+        echo "$VALS"
+    fi
+
+    # Eval results (from inline CORE metric or standalone base_eval)
+    EVALS=$(grep -E "^Evaluating:" "$LOG" 2>/dev/null || true)
+    if [ -n "$EVALS" ]; then
+        echo ""
+        EVAL_DONE=$(echo "$EVALS" | wc -l | tr -d ' ')
+        EVAL_LAST=$(echo "$EVALS" | tail -1)
+        echo "=== EVAL ($EVAL_DONE benchmarks) ==="
+        # Show CORE metric if available
+        CORE=$(grep "CORE metric:" "$LOG" 2>/dev/null | tail -1 || true)
+        if [ -n "$CORE" ]; then
+            echo "$CORE"
+        fi
+        # Show top results (accuracy > random)
+        echo "$EVALS" | grep -v "accuracy: 0.0000" | while IFS= read -r line; do
+            BENCH=$(echo "$line" | sed 's/Evaluating: \([^ ]*\).*/\1/')
+            ACC=$(echo "$line" | grep -oE "accuracy: [0-9.]+" | head -1)
+            echo "  $BENCH: $ACC"
+        done
     fi
 else
     echo "No log file at $LOG"
