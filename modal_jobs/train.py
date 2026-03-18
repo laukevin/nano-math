@@ -2,17 +2,17 @@
 
 nanochat handles all training (pretrain, SFT, GRPO), model saving,
 eval, and W&B logging. We just pass the right flags.
+
+For math SFT, we use our own scripts/math_sft.py instead of nanochat's
+chat_sft.py (which NaN's on small models due to data packing issues).
 """
 
 from __future__ import annotations
-
-import modal
 
 from modal_jobs.common import (
     VOLUME_MOUNTS,
     WANDB_SECRET,
     app,
-    code_mount,
     train_image,
     vol_checkpoints,
     vol_results,
@@ -21,99 +21,178 @@ from modal_jobs.common import (
 
 @app.function(
     image=train_image,
-    gpu=modal.gpu.H100(count=1),
-    timeout=8 * 3600,
+    gpu="T4",
+    timeout=2 * 3600,
     volumes=VOLUME_MOUNTS,
-    mounts=[code_mount],
-    secrets=[WANDB_SECRET],
+    secrets=[s for s in [WANDB_SECRET] if s is not None],
 )
-def run_train(
-    stage: str,
-    depth: int,
-    experiment_id: str,
-    # Pretrain
-    mixture: str | None = None,
-    token_multiplier: int = 50,
-    # SFT
-    parent_checkpoint: str | None = None,
-    sft_recipe: str | None = None,
-    epochs: int = 3,
-    lr: float = 2e-5,
-    max_seq_len: int = 2048,
-    # GRPO
-    curriculum: str = "easy-to-hard",
-    kl_coeff: float = 0.05,
-    group_size: int = 8,
-    # Shared
-    wandb_mode: str = "online",
+def run_pretrain(
+    depth: int = 2,
+    max_seq_len: int = 512,
     num_iterations: int = -1,
-    extra_args: list[str] | None = None,
+    save_every: int = 100,
+    device_batch_size: int = 32,
+    run_name: str = "dummy",
 ) -> dict:
-    """Run training via nanochat on Modal. Returns run metadata."""
+    """Run pretrain via nanochat on Modal."""
     import subprocess
-    import sys
     import time
-    from pathlib import Path
 
-    sys.path.insert(0, "/root/math-nano")
-    start_time = time.monotonic()
+    cmd = [
+        "python", "-m", "scripts.base_train",
+        f"--depth={depth}",
+        f"--max-seq-len={max_seq_len}",
+        "--window-pattern=L",
+        "--pos-encoding=nope",
+        f"--save-every={save_every}",
+        f"--device-batch-size={device_batch_size}",
+        f"--core-metric-every=-1",
+        f"--run={run_name}",
+    ]
+    if num_iterations > 0:
+        cmd.append(f"--num-iterations={num_iterations}")
 
-    run_name = experiment_id if wandb_mode != "disabled" else "dummy"
+    import os
+    from modal_jobs.common import vol_data
 
-    # ── Build command for the appropriate nanochat script ──
-    if stage == "pretrain":
-        cmd = [
-            "python", "-m", "scripts.base_train",
-            f"--depth={depth}",
-            f"--run={run_name}",
-            f"--max-seq-len={max_seq_len}",
-        ]
-        if num_iterations > 0:
-            cmd.append(f"--num-iterations={num_iterations}")
+    base_dir = "/data"
+    data_dir = os.path.join(base_dir, "base_data_climbmix")
+    tok_dir = os.path.join(base_dir, "tokenizer")
 
-    elif stage == "sft":
-        cmd = [
-            "python", "-m", "scripts.chat_sft",
-            f"--run={run_name}",
-            f"--max-seq-len={max_seq_len}",
-        ]
-        if parent_checkpoint:
-            cmd.append(f"--model-tag={parent_checkpoint}")
-        if num_iterations > 0:
-            cmd.append(f"--num-iterations={num_iterations}")
+    # Copy tokenizer to data volume if not there yet
+    if not os.path.exists(tok_dir):
+        import shutil
+        shutil.copytree("/root/.cache/nanochat/tokenizer", tok_dir)
+        vol_data.commit()
 
-    elif stage == "grpo":
-        cmd = [
-            "python", "-m", "scripts.chat_rl",
-            f"--run={run_name}",
-            f"--num-samples={group_size}",
-        ]
-        if parent_checkpoint:
-            cmd.append(f"--model-tag={parent_checkpoint}")
+    # Download dataset on first run (persisted in volume)
+    if not os.path.exists(data_dir):
+        print("[pretrain] Downloading dataset (first time only)...")
+        dl_env = {**os.environ, "NANOCHAT_BASE_DIR": base_dir}
+        dl_result = subprocess.run(
+            ["python", "-m", "nanochat.dataset", "-n", "10"],
+            cwd="/root/math-nano/vendor/nanochat",
+            capture_output=True, text=True, env=dl_env,
+        )
+        print(dl_result.stdout[-1000:] if len(dl_result.stdout) > 1000 else dl_result.stdout)
+        if dl_result.returncode != 0:
+            print("DL STDERR:", dl_result.stderr[-500:])
+        vol_data.commit()
 
-    else:
-        raise ValueError(f"Unknown stage: {stage}")
+    print(f"[pretrain] Running: {' '.join(cmd)}")
+    start = time.monotonic()
+    env = {**os.environ, "WANDB_MODE": "disabled", "NANOCHAT_BASE_DIR": base_dir}
+    result = subprocess.run(cmd, cwd="/root/math-nano/vendor/nanochat", capture_output=True, text=True, env=env)
+    elapsed = time.monotonic() - start
 
-    if extra_args:
-        cmd.extend(extra_args)
+    print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
+    if result.stderr:
+        print("STDERR:", result.stderr[-1000:])
 
-    # ── Train ──
-    print(f"[{stage}] Running: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True, cwd="/root/math-nano")
-
-    elapsed_hours = (time.monotonic() - start_time) / 3600
-
-    # ── Commit volumes ──
     vol_checkpoints.commit()
+
+    return {
+        "stage": "pretrain",
+        "depth": depth,
+        "exit_code": result.returncode,
+        "wall_clock_s": elapsed,
+    }
+
+
+@app.function(
+    image=train_image,
+    gpu="T4",
+    timeout=2 * 3600,
+    volumes=VOLUME_MOUNTS,
+    secrets=[s for s in [WANDB_SECRET] if s is not None],
+)
+def run_math_sft(
+    model_tag: str = "d2",
+    num_steps: int = 500,
+    batch_size: int = 16,
+    lr: float = 1e-4,
+    max_seq_len: int = 512,
+    save_every: int = 100,
+    eval_every: int = 50,
+) -> dict:
+    """Run math SFT using our script on Modal."""
+    import subprocess
+    import time
+
+    cmd = [
+        "python", "/root/math-nano/scripts/math_sft.py",
+        f"--model-tag={model_tag}",
+        f"--num-steps={num_steps}",
+        f"--batch-size={batch_size}",
+        f"--lr={lr}",
+        f"--max-seq-len={max_seq_len}",
+        f"--save-every={save_every}",
+        f"--eval-every={eval_every}",
+    ]
+
+    print(f"[math_sft] Running: {' '.join(cmd)}")
+    start = time.monotonic()
+    result = subprocess.run(cmd, cwd="/root/math-nano/vendor/nanochat", capture_output=True, text=True)
+    elapsed = time.monotonic() - start
+
+    print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
+    if result.stderr:
+        print("STDERR:", result.stderr[-1000:])
+
+    vol_checkpoints.commit()
+
+    return {
+        "stage": "math_sft",
+        "model_tag": model_tag,
+        "exit_code": result.returncode,
+        "wall_clock_s": elapsed,
+    }
+
+
+@app.function(
+    image=train_image,
+    gpu="T4",
+    timeout=1 * 3600,
+    volumes=VOLUME_MOUNTS,
+)
+def run_math_eval(
+    model_tag: str = "d2",
+    phase: str = "base",
+    n_problems: int = 10,
+    max_tokens: int = 128,
+) -> dict:
+    """Run math eval on Modal."""
+    import subprocess
+    import time
+
+    cmd = [
+        "python", "-m", "scripts.eval.run",
+        f"--model-tag={model_tag}",
+        f"--phase={phase}",
+        f"--n-problems={n_problems}",
+        f"--max-tokens={max_tokens}",
+        f"--output=/results/eval_{model_tag}_{phase}.json",
+    ]
+
+    print(f"[eval] Running: {' '.join(cmd)}")
+    start = time.monotonic()
+    result = subprocess.run(
+        cmd, cwd="/root/math-nano/vendor/nanochat",
+        capture_output=True, text=True,
+        env={"PYTHONPATH": "/root/math-nano", "PATH": "/usr/bin:/bin"},
+    )
+    elapsed = time.monotonic() - start
+
+    print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
+    if result.stderr:
+        print("STDERR:", result.stderr[-1000:])
+
     vol_results.commit()
 
     return {
-        "experiment_id": experiment_id,
-        "stage": stage,
-        "depth": depth,
-        "wall_clock_hours": elapsed_hours,
-        "final_checkpoint": f"checkpoints/{experiment_id}",
-        "best_checkpoint": f"checkpoints/{experiment_id}",
-        "final_loss": 0.0,
-        "tokens_seen": 0,
+        "stage": "eval",
+        "model_tag": model_tag,
+        "phase": phase,
+        "exit_code": result.returncode,
+        "wall_clock_s": elapsed,
     }
