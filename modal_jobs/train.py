@@ -12,6 +12,7 @@ from modal_jobs.common import (
     VOLUME_MOUNTS,
     WANDB_SECRET,
     app,
+    code_mount,
     train_image,
     vol_checkpoints,
     vol_results,
@@ -23,6 +24,7 @@ from modal_jobs.common import (
     gpu=modal.gpu.H100(count=1),
     timeout=8 * 3600,
     volumes=VOLUME_MOUNTS,
+    mounts=[code_mount],
     secrets=[WANDB_SECRET],
 )
 def run_train(
@@ -49,15 +51,22 @@ def run_train(
 ) -> dict:
     """Run any training stage on Modal.
 
-    The stage parameter determines which training script runs and what
-    checkpoint directory structure is used. Eval runs inline after training.
+    Returns dict with: checkpoint_dir, final_checkpoint, best_checkpoint,
+    final_loss, wall_clock_hours, tokens_seen, eval_results.
     """
     import json
     import subprocess
+    import sys
+    import time
     from pathlib import Path
+
+    # Add project code to Python path
+    sys.path.insert(0, "/root/math-nano")
 
     ckpt_dir = f"/checkpoints/d{depth}/{stage}/{experiment_id}"
     Path(ckpt_dir).mkdir(parents=True, exist_ok=True)
+
+    start_time = time.monotonic()
 
     # ── Build training command based on stage ──
     if stage == "pretrain":
@@ -80,7 +89,7 @@ def run_train(
             f"--output={hf_parent}",
             f"--depth={depth}",
             "--direction=nanochat_to_hf",
-        ], check=True)
+        ], check=True, cwd="/root/math-nano")
 
         cmd = [
             "python", "-m", "scripts.train.run_sft",
@@ -103,7 +112,7 @@ def run_train(
             f"--output={hf_parent}",
             f"--depth={depth}",
             "--direction=nanochat_to_hf",
-        ], check=True)
+        ], check=True, cwd="/root/math-nano")
 
         cmd = [
             "python", "-m", "scripts.train.run_grpo",
@@ -123,11 +132,17 @@ def run_train(
 
     # ── Train ──
     print(f"[{stage}] Running: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, cwd="/root/math-nano")
+
+    elapsed_hours = (time.monotonic() - start_time) / 3600
 
     # ── Inline eval ──
     eval_output = f"/results/eval_{experiment_id}.json"
     final_ckpt = f"{ckpt_dir}/final.pt"
+    best_ckpt = f"{ckpt_dir}/best.pt"
+    if not Path(best_ckpt).exists():
+        best_ckpt = final_ckpt
+
     eval_cmd = [
         "python", "-m", "scripts.eval.run_eval",
         f"--checkpoint={final_ckpt}",
@@ -137,18 +152,39 @@ def run_train(
         f"--output={eval_output}",
     ]
     print(f"[{stage}] Running eval: {' '.join(eval_cmd)}")
-    subprocess.run(eval_cmd, check=True)
+    try:
+        subprocess.run(eval_cmd, check=True, cwd="/root/math-nano")
+    except subprocess.CalledProcessError as e:
+        print(f"[{stage}] Eval failed (non-fatal): {e}")
 
     # ── Commit volumes ──
     vol_checkpoints.commit()
     vol_results.commit()
 
+    # ── Parse results ──
     eval_results = {}
     if Path(eval_output).exists():
         eval_results = json.loads(Path(eval_output).read_text())
 
+    # Read final loss from checkpoint if available
+    final_loss = 0.0
+    tokens_seen = 0
+    if Path(final_ckpt).exists():
+        try:
+            import torch
+            ckpt = torch.load(final_ckpt, map_location="cpu", weights_only=False)
+            metrics = ckpt.get("metrics", {})
+            final_loss = metrics.get("val_bpb", metrics.get("train_loss", 0.0))
+            tokens_seen = ckpt.get("tokens_seen", ckpt.get("step", 0))
+        except Exception:
+            pass
+
     return {
         "checkpoint_dir": ckpt_dir,
         "final_checkpoint": final_ckpt,
+        "best_checkpoint": best_ckpt,
+        "final_loss": final_loss,
+        "wall_clock_hours": elapsed_hours,
+        "tokens_seen": tokens_seen,
         "eval_results": eval_results,
     }
