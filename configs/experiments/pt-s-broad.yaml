@@ -1,0 +1,12 @@
+experiment_id: pt-s-broad
+stage: pretrain
+phase: "1a"
+depth: 12
+mixture: mix-math-broad
+token_multiplier: 50
+eval_suite: small
+eval_every: 5000
+gpu: H100
+timeout_hours: 8
+tags: ["phase-1a", "pilot"]
+notes: "Pilot: S model with broad math mixture"

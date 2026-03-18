@@ -8,28 +8,30 @@ dependencies = [
     "torch>=2.4.0",
     "transformers>=4.40.0",
     "datasets>=2.18.0",
+    "trl>=0.8.0",
     "tiktoken>=0.6.0",
+    "wandb>=0.16.0",
     "huggingface-hub>=0.22.0",
     "numpy>=1.26.0",
-]
-
-[project.optional-dependencies]
-dev = ["pytest", "ruff"]
-all = [
-    "trl>=0.8.0",
-    "wandb>=0.16.0",
     "matplotlib>=3.8.0",
     "pandas>=2.1.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "ipython"]
+modal = ["modal>=0.64.0"]
+
 [tool.uv]
-dev-dependencies = ["pytest", "ruff"]
+dev-dependencies = ["pytest", "ruff", "ipython"]
 
 [tool.pytest.ini_options]
 markers = [
     "slow: marks tests as slow (smoke tests, training runs)",
 ]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
 
 [build-system]
 requires = ["hatchling"]
