@@ -1,0 +1,155 @@
+{
+  "n_problems": 10,
+  "accuracy": 0.0,
+  "extraction_rate": 1.0,
+  "format_boxed_rate": 0.3,
+  "format_number_rate": 0.7,
+  "format_steps_rate": 0.3,
+  "per_problem": [
+    {
+      "id": "gsm8k_0000",
+      "problem": "Janet\u2019s ducks lay 16 eggs per day. She eats three for breakfast every morning an",
+      "ground_truth": "18",
+      "extracted": "boxed{}}",
+      "correct": false,
+      "format": {
+        "has_boxed": true,
+        "has_number": false,
+        "has_steps": true
+      },
+      "output_preview": " 16 eggs.\n\nThe answer is \\boxed{}}.<|assistant_end|> 16 eggs.\n\nThe answer is \\boxed{}}.<|assistant_end|>}.<|assistant_end|>}.<|assistant_end|>}._{}._{}._{}._{}}._{}}._{}}._{}}._{}}.}.}.}.}.}.}.}.}.}.}",
+      "time_s": 4.592104911804199
+    },
+    {
+      "id": "gsm8k_0001",
+      "problem": "A robe takes 2 bolts of blue fiber and half that much white fiber.  How many bol",
+      "ground_truth": "3",
+      "extracted": "2",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2 = 2",
+      "time_s": 2.2018423080444336
+    },
+    {
+      "id": "gsm8k_0002",
+      "problem": "Josh decides to try flipping a house.  He buys a house for $80,000 and then puts",
+      "ground_truth": "70000",
+      "extracted": "100",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 80,000.5 = $<<800.5=100.5=100.5=100.5=100.5=100.5=100.5=100.5=100.5=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=100=",
+      "time_s": 1.017570972442627
+    },
+    {
+      "id": "gsm8k_0003",
+      "problem": "James decides to run 3 sprints 3 times a week.  He runs 60 meters each sprint.  ",
+      "ground_truth": "540",
+      "extracted": "3",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 = 3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =  3 =",
+      "time_s": 0.9822897911071777
+    },
+    {
+      "id": "gsm8k_0004",
+      "problem": "Every day, Wendi feeds each of her chickens three cups of mixed chicken feed, co",
+      "ground_truth": "20",
+      "extracted": "boxed{}}",
+      "correct": false,
+      "format": {
+        "has_boxed": true,
+        "has_number": false,
+        "has_steps": true
+      },
+      "output_preview": " 15 cups of the chickens.\n\nThe answer is \\boxed{}}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}}.}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
+      "time_s": 2.6308181285858154
+    },
+    {
+      "id": "gsm8k_0005",
+      "problem": "Kylar went to the store to buy glasses for his new apartment. One glass costs $5",
+      "ground_truth": "64",
+      "extracted": "60",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost $60% cost ",
+      "time_s": 1.0633819103240967
+    },
+    {
+      "id": "gsm8k_0006",
+      "problem": "Toulouse has twice as many sheep as Charleston. Charleston has 4 times as many s",
+      "ground_truth": "260",
+      "extracted": "4",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 4 sheep.",
+      "time_s": 0.04723405838012695
+    },
+    {
+      "id": "gsm8k_0007",
+      "problem": "Carla is downloading a 200 GB file. Normally she can download 2 GB/minute, but 4",
+      "ground_truth": "160",
+      "extracted": "boxed{}",
+      "correct": false,
+      "format": {
+        "has_boxed": true,
+        "has_number": false,
+        "has_steps": true
+      },
+      "output_preview": " 20 minutes.\n\nThe answer is \\boxed{}._{}._{}._{}._{}._{}._{}._{}._{}._{}._{}._{}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}.}}.}}.}}}}}}}}}}}}}}}}}}}}}}",
+      "time_s": 1.049955129623413
+    },
+    {
+      "id": "gsm8k_0008",
+      "problem": "John drives for 3 hours at a speed of 60 mph and then turns around because he re",
+      "ground_truth": "45",
+      "extracted": "60",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 60 hours because 60 hours because 60 hours because 60 hours because 60 hours because 60 hours because 60 hours because 60 hours because 60 hours because 60 hours because 60 hours because 60 hours bec",
+      "time_s": 1.0762388706207275
+    },
+    {
+      "id": "gsm8k_0009",
+      "problem": "Eliza's rate per hour for the first 40 hours she works each week is $10. She als",
+      "ground_truth": "460",
+      "extracted": "40",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 40 hours, then then add the amount of the total amount of the total amount of the total amount of the total amount of the total amount of the total amount of the total amount of the total amount of t",
+      "time_s": 1.0569448471069336
+    }
+  ],
+  "model_tag": "d2",
+  "step": null,
+  "n_params": 12976170,
+  "device": "mps",
+  "total_time_s": 15.71936821937561
+}

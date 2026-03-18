@@ -1,0 +1,155 @@
+{
+  "n_problems": 10,
+  "accuracy": 0.0,
+  "extraction_rate": 1.0,
+  "format_boxed_rate": 0.0,
+  "format_number_rate": 1.0,
+  "format_steps_rate": 0.0,
+  "per_problem": [
+    {
+      "id": "gsm8k_0000",
+      "problem": "Janet\u2019s ducks lay 16 eggs per day. She eats three for breakfast every morning an",
+      "ground_truth": "18",
+      "extracted": "3",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 2. She is a 2. She is a 2. She is a 2. She is a 2. She is a 2. She is a 3. She is a 3. She is a 3. She is a 3. She is a 3. She is a 3. She is a 3. She is a 3. She is a 3. She is a 3. She is a 3. She ",
+      "time_s": 4.632709264755249
+    },
+    {
+      "id": "gsm8k_0001",
+      "problem": "A robe takes 2 bolts of blue fiber and half that much white fiber.  How many bol",
+      "ground_truth": "3",
+      "extracted": "2",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2",
+      "time_s": 2.1763558387756348
+    },
+    {
+      "id": "gsm8k_0002",
+      "problem": "Josh decides to try flipping a house.  He buys a house for $80,000 and then puts",
+      "ground_truth": "70000",
+      "extracted": "20",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20. 20.  20.  20.  20.  20.  20.  20.  20.  20.  20.  20.  20.  20.  20.  20 20 20 20 20 20 20 ",
+      "time_s": 1.033215045928955
+    },
+    {
+      "id": "gsm8k_0003",
+      "problem": "James decides to run 3 sprints 3 times a week.  He runs 60 meters each sprint.  ",
+      "ground_truth": "540",
+      "extracted": "1",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1",
+      "time_s": 0.9652140140533447
+    },
+    {
+      "id": "gsm8k_0004",
+      "problem": "Every day, Wendi feeds each of her chickens three cups of mixed chicken feed, co",
+      "ground_truth": "20",
+      "extracted": "1",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1 cup of 1",
+      "time_s": 2.6337039470672607
+    },
+    {
+      "id": "gsm8k_0005",
+      "problem": "Kylar went to the store to buy glasses for his new apartment. One glass costs $5",
+      "ground_truth": "64",
+      "extracted": "5",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 20. If you buy glass costs $ $5. If you buy glass costs $ $5. If you buy glass costs $ $5. If you buy glass costs $ $5. If you buy glass costs $ $5. If you buy glass costs $ $5, you buy glass costs $",
+      "time_s": 1.1013062000274658
+    },
+    {
+      "id": "gsm8k_0006",
+      "problem": "Toulouse has twice as many sheep as Charleston. Charleston has 4 times as many s",
+      "ground_truth": "260",
+      "extracted": "5",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 5 times sheep are sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep sheep s",
+      "time_s": 0.9907500743865967
+    },
+    {
+      "id": "gsm8k_0007",
+      "problem": "Carla is downloading a 200 GB file. Normally she can download 2 GB/minute, but 4",
+      "ground_truth": "160",
+      "extracted": "1",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 1.",
+      "time_s": 0.0320429801940918
+    },
+    {
+      "id": "gsm8k_0008",
+      "problem": "John drives for 3 hours at a speed of 60 mph and then turns around because he re",
+      "ground_truth": "45",
+      "extracted": "2",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 4 hours. He is 2 hours. He is 2 hours. He is 2 hours. He is 2 hours. He is 2 hours. He is 2 hours. He he is 2 hours. He he is 2 hours he is 2 hours he is 2 hours he is 2 hours he is 2 hours he is 2 h",
+      "time_s": 1.110780954360962
+    },
+    {
+      "id": "gsm8k_0009",
+      "problem": "Eliza's rate per hour for the first 40 hours she works each week is $10. She als",
+      "ground_truth": "460",
+      "extracted": "1",
+      "correct": false,
+      "format": {
+        "has_boxed": false,
+        "has_number": true,
+        "has_steps": false
+      },
+      "output_preview": " 1 hour.",
+      "time_s": 0.03571510314941406
+    }
+  ],
+  "model_tag": "d2",
+  "step": null,
+  "n_params": 12976170,
+  "device": "mps",
+  "total_time_s": 14.712733030319214
+}
