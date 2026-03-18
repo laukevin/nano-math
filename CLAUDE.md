@@ -100,10 +100,34 @@ cd vendor/nanochat && WANDB_MODE=disabled PYTHONUNBUFFERED=1 \
 - Pretrain: `~/.cache/nanochat/base_checkpoints/d{depth}/`
 - SFT: `~/.cache/nanochat/chatsft_checkpoints/d{depth}/`
 
+## Math eval (our own)
+Nanochat's CORE eval is general-purpose (HellaSwag, ARC, etc.) — not math.
+Our math eval lives in `scripts/eval/run.py`:
+```bash
+# Run from nanochat venv, 10 GSM8K problems, quick check
+cd vendor/nanochat && PYTHONPATH=../.. \
+  uv run python -m scripts.eval.run \
+    --model-tag d2 --n-problems 10 --max-tokens 128 \
+    --output ../../logs/eval_d2_pretrain.json
+
+# Full GSM8K eval (50 problems, longer generation)
+cd vendor/nanochat && PYTHONPATH=../.. \
+  uv run python -m scripts.eval.run \
+    --model-tag d2 --n-problems 50 --max-tokens 512 \
+    --output ../../logs/eval_d2_pretrain.json
+```
+Metrics reported:
+- **Accuracy** — exact match on extracted answer vs ground truth
+- **Format scores** — has_boxed (uses \boxed{}), has_number (extracted a number), has_steps (multi-line reasoning)
+- **Extraction rate** — could we extract any answer at all
+
+Results saved as JSON in `logs/`. Compare pretrain vs SFT stages.
+
 ## Project structure
 - `vendor/nanochat/` — training framework (submodule, patched with NoPE)
 - `scripts/status.sh` — training status, plot, eval results, cleanup
 - `scripts/data/prepare_sft.py` — math SFT data prep (5 recipes)
+- `scripts/eval/run.py` — math eval bridge (loads nanochat checkpoint, runs GSM8K)
 - `scripts/eval/` — eval pipeline (extraction, pass@k, reward)
-- `logs/` — training logs (gitignored)
+- `logs/` — training logs and eval results (gitignored)
 - `next_steps.md` — detailed next steps
