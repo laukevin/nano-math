@@ -345,18 +345,109 @@ class ExperimentRunner:
         except ImportError:
             pass
 
+    def _dispatch_modal(self, config: ExperimentConfig) -> TrainResult:
+        """Dispatch training to Modal and parse the result."""
+        from modal_jobs.train import run_train
+
+        kwargs = {
+            "stage": config.stage,
+            "depth": config.depth,
+            "experiment_id": config.experiment_id,
+            "wandb_mode": config.wandb_mode,
+        }
+
+        if config.stage == "pretrain":
+            kwargs["mixture"] = config.mixture
+            kwargs["token_multiplier"] = config.token_multiplier
+        elif config.stage == "sft":
+            kwargs["parent_checkpoint"] = config.parent_checkpoint
+            kwargs["sft_recipe"] = config.sft_recipe
+            kwargs["epochs"] = config.sft_epochs
+            kwargs["lr"] = config.sft_lr
+            kwargs["max_seq_len"] = config.sft_max_seq_len
+        elif config.stage == "grpo":
+            kwargs["parent_checkpoint"] = config.parent_checkpoint
+            kwargs["curriculum"] = config.rl_curriculum or "easy-to-hard"
+            kwargs["kl_coeff"] = config.rl_kl_coeff
+            kwargs["group_size"] = config.rl_group_size
+
+        logger.info("Dispatching to Modal: %s", config.experiment_id)
+        result = run_train.remote(**kwargs)
+
+        return TrainResult(
+            best_checkpoint=result.get("best_checkpoint", result.get("final_checkpoint", "")),
+            final_checkpoint=result.get("final_checkpoint", ""),
+            final_loss=result.get("final_loss", 0.0),
+            wall_clock_hours=result.get("wall_clock_hours", 0.0),
+            tokens_seen=result.get("tokens_seen", 0),
+            cost_usd=estimate_cost(config),
+            wandb_run_id=result.get("wandb_run_id"),
+            extra={"eval_results_from_modal": result.get("eval_results", {})},
+        )
+
+    def _dispatch_local(self, config: ExperimentConfig) -> TrainResult:
+        """Run training locally via nanochat subprocess (CPU/MPS, for dev/smoke tests)."""
+        device_type = config.device if config.device not in ("auto", "") else ""
+        run_name = config.experiment_id if config.wandb_mode != "disabled" else "dummy"
+
+        if config.stage == "pretrain":
+            cmd = [
+                "uv", "run", "python", "-m", "scripts.base_train",
+                f"--depth={config.depth}",
+                f"--run={run_name}",
+            ]
+            if device_type:
+                cmd.append(f"--device-type={device_type}")
+        elif config.stage == "sft":
+            cmd = [
+                "uv", "run", "python", "-m", "scripts.chat_sft",
+                f"--run={run_name}",
+                f"--max-seq-len={config.sft_max_seq_len}",
+            ]
+            if config.parent_checkpoint:
+                cmd.append(f"--model-tag={config.parent_checkpoint}")
+            if device_type:
+                cmd.append(f"--device-type={device_type}")
+        elif config.stage == "grpo":
+            cmd = [
+                "uv", "run", "python", "-m", "scripts.chat_rl",
+                f"--run={run_name}",
+                f"--num-samples={config.rl_group_size}",
+            ]
+            if config.parent_checkpoint:
+                cmd.append(f"--model-tag={config.parent_checkpoint}")
+            if device_type:
+                cmd.append(f"--device-type={device_type}")
+        else:
+            raise ValueError(f"Unknown stage: {config.stage}")
+
+        logger.info("Running locally via nanochat: %s", " ".join(cmd))
+        start = time.monotonic()
+        subprocess.run(cmd, check=True)
+        elapsed = (time.monotonic() - start) / 3600
+
+        return TrainResult(
+            best_checkpoint=f"checkpoints/{config.experiment_id}",
+            final_checkpoint=f"checkpoints/{config.experiment_id}",
+            final_loss=0.0,
+            wall_clock_hours=elapsed,
+            tokens_seen=0,
+            cost_usd=0.0,
+        )
+
+    def _is_local(self, config: ExperimentConfig) -> bool:
+        """Determine if this run should execute locally (not on Modal)."""
+        return config.device in ("cpu", "mps") or config.gpu == "local"
+
     def _run_pretrain(self, config: ExperimentConfig) -> TrainResult:
-        """Launch pretrain job. In production, dispatches to Modal."""
+        """Launch pretrain job."""
         logger.info(
             "Starting pretrain: %s (depth=%d, mixture=%s, tokens=%dx)",
             config.experiment_id, config.depth, config.mixture, config.token_multiplier,
         )
-        # The actual training is dispatched via Modal or run locally.
-        # This is a placeholder that will be connected to modal_jobs/pretrain.py
-        raise NotImplementedError(
-            "Pretrain dispatch not yet connected. "
-            "Use `modal run modal_jobs/pretrain.py` directly for now."
-        )
+        if self._is_local(config):
+            return self._dispatch_local(config)
+        return self._dispatch_modal(config)
 
     def _run_sft(self, config: ExperimentConfig) -> TrainResult:
         """Launch SFT job."""
@@ -364,10 +455,9 @@ class ExperimentRunner:
             "Starting SFT: %s (depth=%d, recipe=%s, parent=%s)",
             config.experiment_id, config.depth, config.sft_recipe, config.parent_checkpoint,
         )
-        raise NotImplementedError(
-            "SFT dispatch not yet connected. "
-            "Use `modal run modal_jobs/sft.py` directly for now."
-        )
+        if self._is_local(config):
+            return self._dispatch_local(config)
+        return self._dispatch_modal(config)
 
     def _run_grpo(self, config: ExperimentConfig) -> TrainResult:
         """Launch GRPO job."""
@@ -375,16 +465,63 @@ class ExperimentRunner:
             "Starting GRPO: %s (depth=%d, curriculum=%s, parent=%s)",
             config.experiment_id, config.depth, config.rl_curriculum, config.parent_checkpoint,
         )
-        raise NotImplementedError(
-            "GRPO dispatch not yet connected. "
-            "Use `modal run modal_jobs/grpo.py` directly for now."
-        )
+        if self._is_local(config):
+            return self._dispatch_local(config)
+        return self._dispatch_modal(config)
 
     def _run_eval(self, config: ExperimentConfig, checkpoint: str) -> dict[str, Any]:
         """Run post-training eval suite."""
         logger.info("Running eval suite '%s' on %s", config.eval_suite, checkpoint)
-        # Placeholder — will dispatch to modal_jobs/eval.py or run locally
-        return {}
+
+        if not checkpoint or checkpoint == "dry-run" or not Path(checkpoint).exists():
+            logger.warning("Checkpoint not found, skipping eval: %s", checkpoint)
+            return {}
+
+        try:
+            from scripts.eval.data import SUITE_DATASETS, get_manifest_sha, load_eval_dataset
+            from scripts.eval.evaluate import build_output_json, run_dataset_eval
+            from scripts.eval.inference import load_model
+
+            device = config.device if config.device != "auto" else "cpu"
+            model, tokenizer, device, n_params = load_model(checkpoint, config.depth, device)
+
+            datasets = SUITE_DATASETS.get(config.eval_suite, SUITE_DATASETS["small"])
+            data_dir = Path("data/eval")
+            n_samples = 1 if config.eval_suite == "small" else 16
+            temperature = 0.0 if n_samples == 1 else 0.7
+
+            dataset_results = {}
+            for ds_name in datasets:
+                try:
+                    problems = load_eval_dataset(ds_name, data_dir)
+                    result = run_dataset_eval(
+                        model, tokenizer, problems, ds_name,
+                        n_samples=n_samples, temperature=temperature, device=device,
+                    )
+                    dataset_results[ds_name] = result
+                    logger.info("  %s: pass@1=%.3f", ds_name, result.get("pass_at_1_greedy", 0.0))
+                except FileNotFoundError:
+                    logger.warning("  %s: dataset not found, skipping", ds_name)
+
+            output = build_output_json(
+                checkpoint=checkpoint, depth=config.depth, model_params=n_params,
+                suite=config.eval_suite, n_samples=n_samples, temperature=temperature,
+                dataset_results=dataset_results,
+                manifest_sha=get_manifest_sha(data_dir),
+                experiment_id=config.experiment_id, stage=config.stage,
+            )
+
+            # Save eval results
+            eval_dir = Path("results/eval")
+            eval_dir.mkdir(parents=True, exist_ok=True)
+            eval_path = eval_dir / f"{config.experiment_id}.json"
+            eval_path.write_text(json.dumps(output, indent=2) + "\n")
+            logger.info("Eval results saved to %s", eval_path)
+
+            return output
+        except Exception as e:
+            logger.error("Eval failed: %s", e)
+            return {}
 
     def _register_model(
         self,

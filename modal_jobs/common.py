@@ -4,6 +4,7 @@ from __future__ import annotations
 
 try:
     import modal
+    from pathlib import Path
 
     app = modal.App("math-nano")
 
@@ -18,7 +19,20 @@ try:
         "/results": vol_results,
     }
 
-    # Single image for all training jobs (includes eval deps)
+    # Mount the project code into the container
+    project_root = Path(__file__).parent.parent
+    code_mount = modal.Mount.from_local_dir(
+        project_root,
+        remote_path="/root/math-nano",
+        condition=lambda path: not any(
+            part in path for part in [
+                ".venv", "__pycache__", ".git", "wandb",
+                "checkpoints", "data/raw", "data/tokenized",
+            ]
+        ),
+    )
+
+    # Single image for all training jobs
     train_image = (
         modal.Image.debian_slim(python_version="3.11")
         .pip_install(
@@ -44,3 +58,4 @@ except ImportError:
     VOLUME_MOUNTS = {}
     train_image = None
     WANDB_SECRET = None
+    code_mount = None

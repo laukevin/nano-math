@@ -1,7 +1,7 @@
-"""Modal job: single training launcher for all stages (pretrain, sft, grpo).
+"""Modal job: training launcher that calls nanochat directly.
 
-Runs training + inline post-eval, commits volumes.
-GPU: H100, Timeout: configurable (default 8h).
+nanochat handles all training (pretrain, SFT, GRPO), model saving,
+eval, and W&B logging. We just pass the right flags.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from modal_jobs.common import (
     VOLUME_MOUNTS,
     WANDB_SECRET,
     app,
+    code_mount,
     train_image,
     vol_checkpoints,
     vol_results,
@@ -23,6 +24,7 @@ from modal_jobs.common import (
     gpu=modal.gpu.H100(count=1),
     timeout=8 * 3600,
     volumes=VOLUME_MOUNTS,
+    mounts=[code_mount],
     secrets=[WANDB_SECRET],
 )
 def run_train(
@@ -44,77 +46,51 @@ def run_train(
     group_size: int = 8,
     # Shared
     wandb_mode: str = "online",
-    eval_datasets: str = "gsm8k,math500",
+    num_iterations: int = -1,
     extra_args: list[str] | None = None,
 ) -> dict:
-    """Run any training stage on Modal.
-
-    The stage parameter determines which training script runs and what
-    checkpoint directory structure is used. Eval runs inline after training.
-    """
-    import json
+    """Run training via nanochat on Modal. Returns run metadata."""
     import subprocess
+    import sys
+    import time
     from pathlib import Path
 
-    ckpt_dir = f"/checkpoints/d{depth}/{stage}/{experiment_id}"
-    Path(ckpt_dir).mkdir(parents=True, exist_ok=True)
+    sys.path.insert(0, "/root/math-nano")
+    start_time = time.monotonic()
 
-    # ── Build training command based on stage ──
+    run_name = experiment_id if wandb_mode != "disabled" else "dummy"
+
+    # ── Build command for the appropriate nanochat script ──
     if stage == "pretrain":
         cmd = [
-            "python", "-m", "base_train",
+            "python", "-m", "scripts.base_train",
             f"--depth={depth}",
-            f"--data-source={mixture}",
-            f"--token-multiplier={token_multiplier}",
-            f"--run-name={experiment_id}",
-            f"--checkpoint-dir={ckpt_dir}",
-            f"--wandb-mode={wandb_mode}",
+            f"--run={run_name}",
+            f"--max-seq-len={max_seq_len}",
         ]
+        if num_iterations > 0:
+            cmd.append(f"--num-iterations={num_iterations}")
 
     elif stage == "sft":
-        # Convert parent checkpoint to HF format for TRL
-        hf_parent = f"{ckpt_dir}/_hf_parent"
-        subprocess.run([
-            "python", "-m", "scripts.train.convert_to_hf",
-            f"--checkpoint={parent_checkpoint}",
-            f"--output={hf_parent}",
-            f"--depth={depth}",
-            "--direction=nanochat_to_hf",
-        ], check=True)
-
         cmd = [
-            "python", "-m", "scripts.train.run_sft",
-            f"--model={hf_parent}",
-            f"--recipe={sft_recipe}",
-            f"--epochs={epochs}",
-            f"--lr={lr}",
+            "python", "-m", "scripts.chat_sft",
+            f"--run={run_name}",
             f"--max-seq-len={max_seq_len}",
-            f"--output-dir={ckpt_dir}",
-            f"--run-name={experiment_id}",
-            f"--wandb-mode={wandb_mode}",
         ]
+        if parent_checkpoint:
+            cmd.append(f"--model-tag={parent_checkpoint}")
+        if num_iterations > 0:
+            cmd.append(f"--num-iterations={num_iterations}")
 
     elif stage == "grpo":
-        # Convert parent checkpoint to HF format for TRL
-        hf_parent = f"{ckpt_dir}/_hf_parent"
-        subprocess.run([
-            "python", "-m", "scripts.train.convert_to_hf",
-            f"--checkpoint={parent_checkpoint}",
-            f"--output={hf_parent}",
-            f"--depth={depth}",
-            "--direction=nanochat_to_hf",
-        ], check=True)
-
         cmd = [
-            "python", "-m", "scripts.train.run_grpo",
-            f"--model={hf_parent}",
-            f"--curriculum={curriculum}",
-            f"--kl-coeff={kl_coeff}",
-            f"--group-size={group_size}",
-            f"--output-dir={ckpt_dir}",
-            f"--run-name={experiment_id}",
-            f"--wandb-mode={wandb_mode}",
+            "python", "-m", "scripts.chat_rl",
+            f"--run={run_name}",
+            f"--num-samples={group_size}",
         ]
+        if parent_checkpoint:
+            cmd.append(f"--model-tag={parent_checkpoint}")
+
     else:
         raise ValueError(f"Unknown stage: {stage}")
 
@@ -123,32 +99,21 @@ def run_train(
 
     # ── Train ──
     print(f"[{stage}] Running: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, cwd="/root/math-nano")
 
-    # ── Inline eval ──
-    eval_output = f"/results/eval_{experiment_id}.json"
-    final_ckpt = f"{ckpt_dir}/final.pt"
-    eval_cmd = [
-        "python", "-m", "scripts.eval.run_eval",
-        f"--checkpoint={final_ckpt}",
-        f"--datasets={eval_datasets}",
-        "--mode=full",
-        f"--depth={depth}",
-        f"--output={eval_output}",
-    ]
-    print(f"[{stage}] Running eval: {' '.join(eval_cmd)}")
-    subprocess.run(eval_cmd, check=True)
+    elapsed_hours = (time.monotonic() - start_time) / 3600
 
     # ── Commit volumes ──
     vol_checkpoints.commit()
     vol_results.commit()
 
-    eval_results = {}
-    if Path(eval_output).exists():
-        eval_results = json.loads(Path(eval_output).read_text())
-
     return {
-        "checkpoint_dir": ckpt_dir,
-        "final_checkpoint": final_ckpt,
-        "eval_results": eval_results,
+        "experiment_id": experiment_id,
+        "stage": stage,
+        "depth": depth,
+        "wall_clock_hours": elapsed_hours,
+        "final_checkpoint": f"checkpoints/{experiment_id}",
+        "best_checkpoint": f"checkpoints/{experiment_id}",
+        "final_loss": 0.0,
+        "tokens_seen": 0,
     }
