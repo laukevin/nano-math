@@ -10,19 +10,10 @@ import hashlib
 import json
 
 import pytest
-from scripts.eval.run_eval import (
-    SUITE_DATASETS,
-    build_output_json,
-    evaluate_completions,
-    format_eval_prompt,
-    get_manifest_sha,
-    load_eval_dataset,
-)
-from scripts.eval.check_leakage import (
-    check_leakage,
-    load_eval_problems,
-    normalize_for_dedup,
-)
+
+from scripts.eval.data import SUITE_DATASETS, format_eval_prompt, get_manifest_sha, load_eval_dataset
+from scripts.eval.evaluate import build_output_json, evaluate_completions
+from scripts.eval.leakage import check_leakage, load_eval_problems, load_train_texts, normalize_for_dedup
 from scripts.results.compile import flatten_results, load_eval_jsons
 
 
@@ -240,7 +231,7 @@ class TestEvaluateCompletions:
         problem_ids = ["p0", "p1", "p2"]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=1, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=1
         )
 
         assert result["n_problems"] == 3
@@ -257,7 +248,7 @@ class TestEvaluateCompletions:
         problem_ids = ["p0", "p1"]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=1, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=1
         )
 
         assert result["pass_at_1_greedy"] == 0.0
@@ -274,7 +265,7 @@ class TestEvaluateCompletions:
         problem_ids = ["p0", "p1", "p2", "p3"]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=1, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=1
         )
 
         assert result["pass_at_1_greedy"] == pytest.approx(0.5)
@@ -290,16 +281,10 @@ class TestEvaluateCompletions:
         problem_ids = ["p0", "p1"]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=1, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=1
         )
 
-        # "I don't know" has no numbers so extraction returns None
-        # Actually "I don't know" has no number, but let me verify...
-        # "I don't know the answer." — no numbers, extraction_failures should be 0
-        # Wait: "don't" — no. The regex looks for -?\d+\.?\d* — there's no digit.
-        # Actually wait: let me think. "I don't know the answer." has no digits
-        # so extract_answer should return None → extraction_failure += 1
-        assert result["extraction_failures"] >= 0  # depends on fallback
+        assert result["extraction_failures"] >= 0
         assert result["pass_at_1_greedy"] == pytest.approx(0.5)
 
     def test_greedy_ci_bounds(self):
@@ -309,7 +294,7 @@ class TestEvaluateCompletions:
         problem_ids = [f"p{i}" for i in range(100)]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=1, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=1
         )
 
         ci = result["pass_at_1_greedy_ci95"]
@@ -322,7 +307,7 @@ class TestEvaluateCompletions:
         problem_ids = ["first", "second"]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=1, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=1
         )
 
         per_problem = result["per_problem"]
@@ -343,7 +328,7 @@ class TestEvaluateCompletions:
         problem_ids = ["p0", "p1"]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=4, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=4
         )
 
         assert result["n_problems"] == 2
@@ -365,7 +350,7 @@ class TestEvaluateCompletions:
         problem_ids = [f"p{i}" for i in range(20)]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=8, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=8
         )
 
         p1 = result["pass_at_1_sampled"]
@@ -383,7 +368,7 @@ class TestEvaluateCompletions:
         problem_ids = ["p0", "p1"]
 
         result = evaluate_completions(
-            outputs, ground_truths, problem_ids, n_samples=4, dataset_name="test"
+            outputs, ground_truths, problem_ids, n_samples=4
         )
 
         assert "pass_at_1_sampled_ci95" in result
@@ -465,17 +450,13 @@ class TestLeakageCheck:
         train_dir = tmp_path / "train"
         train_dir.mkdir()
 
-        # Eval data
         eval_data = [{"problem": "What is 2+2?", "answer": "4"}]
         (eval_dir / "test.jsonl").write_text(json.dumps(eval_data[0]))
 
-        # Train data (different problems)
         train_data = [{"problem": "What is 3+3?", "text": "What is 3+3?"}]
         (train_dir / "train.jsonl").write_text(json.dumps(train_data[0]))
 
         eval_problems = load_eval_problems(eval_dir)
-        from scripts.eval.check_leakage import load_train_texts
-
         train_texts = load_train_texts(train_dir)
         report = check_leakage(eval_problems, train_texts)
 
@@ -497,8 +478,6 @@ class TestLeakageCheck:
         (train_dir / "train.jsonl").write_text(json.dumps(train_data[0]))
 
         eval_problems = load_eval_problems(eval_dir)
-        from scripts.eval.check_leakage import load_train_texts
-
         train_texts = load_train_texts(train_dir)
         report = check_leakage(eval_problems, train_texts)
 
