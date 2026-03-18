@@ -1,7 +1,7 @@
-"""Modal job: single training launcher for all stages (pretrain, sft, grpo).
+"""Modal job: training launcher that calls nanochat directly.
 
-Runs training + inline post-eval, commits volumes.
-GPU: H100, Timeout: configurable (default 8h).
+nanochat handles all training (pretrain, SFT, GRPO), model saving,
+eval, and W&B logging. We just pass the right flags.
 """
 
 from __future__ import annotations
@@ -46,84 +46,51 @@ def run_train(
     group_size: int = 8,
     # Shared
     wandb_mode: str = "online",
-    eval_datasets: str = "gsm8k,math500",
+    num_iterations: int = -1,
     extra_args: list[str] | None = None,
 ) -> dict:
-    """Run any training stage on Modal.
-
-    Returns dict with: checkpoint_dir, final_checkpoint, best_checkpoint,
-    final_loss, wall_clock_hours, tokens_seen, eval_results.
-    """
-    import json
+    """Run training via nanochat on Modal. Returns run metadata."""
     import subprocess
     import sys
     import time
     from pathlib import Path
 
-    # Add project code to Python path
     sys.path.insert(0, "/root/math-nano")
-
-    ckpt_dir = f"/checkpoints/d{depth}/{stage}/{experiment_id}"
-    Path(ckpt_dir).mkdir(parents=True, exist_ok=True)
-
     start_time = time.monotonic()
 
-    # ── Build training command based on stage ──
+    run_name = experiment_id if wandb_mode != "disabled" else "dummy"
+
+    # ── Build command for the appropriate nanochat script ──
     if stage == "pretrain":
         cmd = [
-            "python", "-m", "base_train",
+            "python", "-m", "scripts.base_train",
             f"--depth={depth}",
-            f"--data-source={mixture}",
-            f"--token-multiplier={token_multiplier}",
-            f"--run-name={experiment_id}",
-            f"--checkpoint-dir={ckpt_dir}",
-            f"--wandb-mode={wandb_mode}",
+            f"--run={run_name}",
+            f"--max-seq-len={max_seq_len}",
         ]
+        if num_iterations > 0:
+            cmd.append(f"--num-iterations={num_iterations}")
 
     elif stage == "sft":
-        # Convert parent checkpoint to HF format for TRL
-        hf_parent = f"{ckpt_dir}/_hf_parent"
-        subprocess.run([
-            "python", "-m", "scripts.train.convert_to_hf",
-            f"--checkpoint={parent_checkpoint}",
-            f"--output={hf_parent}",
-            f"--depth={depth}",
-            "--direction=nanochat_to_hf",
-        ], check=True, cwd="/root/math-nano")
-
         cmd = [
-            "python", "-m", "scripts.train.run_sft",
-            f"--model={hf_parent}",
-            f"--recipe={sft_recipe}",
-            f"--epochs={epochs}",
-            f"--lr={lr}",
+            "python", "-m", "scripts.chat_sft",
+            f"--run={run_name}",
             f"--max-seq-len={max_seq_len}",
-            f"--output-dir={ckpt_dir}",
-            f"--run-name={experiment_id}",
-            f"--wandb-mode={wandb_mode}",
         ]
+        if parent_checkpoint:
+            cmd.append(f"--model-tag={parent_checkpoint}")
+        if num_iterations > 0:
+            cmd.append(f"--num-iterations={num_iterations}")
 
     elif stage == "grpo":
-        # Convert parent checkpoint to HF format for TRL
-        hf_parent = f"{ckpt_dir}/_hf_parent"
-        subprocess.run([
-            "python", "-m", "scripts.train.convert_to_hf",
-            f"--checkpoint={parent_checkpoint}",
-            f"--output={hf_parent}",
-            f"--depth={depth}",
-            "--direction=nanochat_to_hf",
-        ], check=True, cwd="/root/math-nano")
-
         cmd = [
-            "python", "-m", "scripts.train.run_grpo",
-            f"--model={hf_parent}",
-            f"--curriculum={curriculum}",
-            f"--kl-coeff={kl_coeff}",
-            f"--group-size={group_size}",
-            f"--output-dir={ckpt_dir}",
-            f"--run-name={experiment_id}",
-            f"--wandb-mode={wandb_mode}",
+            "python", "-m", "scripts.chat_rl",
+            f"--run={run_name}",
+            f"--num-samples={group_size}",
         ]
+        if parent_checkpoint:
+            cmd.append(f"--model-tag={parent_checkpoint}")
+
     else:
         raise ValueError(f"Unknown stage: {stage}")
 
@@ -136,55 +103,17 @@ def run_train(
 
     elapsed_hours = (time.monotonic() - start_time) / 3600
 
-    # ── Inline eval ──
-    eval_output = f"/results/eval_{experiment_id}.json"
-    final_ckpt = f"{ckpt_dir}/final.pt"
-    best_ckpt = f"{ckpt_dir}/best.pt"
-    if not Path(best_ckpt).exists():
-        best_ckpt = final_ckpt
-
-    eval_cmd = [
-        "python", "-m", "scripts.eval.run_eval",
-        f"--checkpoint={final_ckpt}",
-        f"--datasets={eval_datasets}",
-        "--mode=full",
-        f"--depth={depth}",
-        f"--output={eval_output}",
-    ]
-    print(f"[{stage}] Running eval: {' '.join(eval_cmd)}")
-    try:
-        subprocess.run(eval_cmd, check=True, cwd="/root/math-nano")
-    except subprocess.CalledProcessError as e:
-        print(f"[{stage}] Eval failed (non-fatal): {e}")
-
     # ── Commit volumes ──
     vol_checkpoints.commit()
     vol_results.commit()
 
-    # ── Parse results ──
-    eval_results = {}
-    if Path(eval_output).exists():
-        eval_results = json.loads(Path(eval_output).read_text())
-
-    # Read final loss from checkpoint if available
-    final_loss = 0.0
-    tokens_seen = 0
-    if Path(final_ckpt).exists():
-        try:
-            import torch
-            ckpt = torch.load(final_ckpt, map_location="cpu", weights_only=False)
-            metrics = ckpt.get("metrics", {})
-            final_loss = metrics.get("val_bpb", metrics.get("train_loss", 0.0))
-            tokens_seen = ckpt.get("tokens_seen", ckpt.get("step", 0))
-        except Exception:
-            pass
-
     return {
-        "checkpoint_dir": ckpt_dir,
-        "final_checkpoint": final_ckpt,
-        "best_checkpoint": best_ckpt,
-        "final_loss": final_loss,
+        "experiment_id": experiment_id,
+        "stage": stage,
+        "depth": depth,
         "wall_clock_hours": elapsed_hours,
-        "tokens_seen": tokens_seen,
-        "eval_results": eval_results,
+        "final_checkpoint": f"checkpoints/{experiment_id}",
+        "best_checkpoint": f"checkpoints/{experiment_id}",
+        "final_loss": 0.0,
+        "tokens_seen": 0,
     }

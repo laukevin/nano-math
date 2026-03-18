@@ -386,64 +386,49 @@ class ExperimentRunner:
         )
 
     def _dispatch_local(self, config: ExperimentConfig) -> TrainResult:
-        """Run training locally via subprocess (CPU/MPS, for dev/smoke tests)."""
-        ckpt_dir = Path(f"checkpoints/d{config.depth}/{config.stage}/{config.experiment_id}")
-        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        """Run training locally via nanochat subprocess (CPU/MPS, for dev/smoke tests)."""
+        device_type = config.device if config.device not in ("auto", "") else ""
+        run_name = config.experiment_id if config.wandb_mode != "disabled" else "dummy"
 
         if config.stage == "pretrain":
             cmd = [
-                "uv", "run", "python", "-m", "base_train",
+                "uv", "run", "python", "-m", "scripts.base_train",
                 f"--depth={config.depth}",
-                f"--device={config.device}",
-                f"--checkpoint-dir={ckpt_dir}",
-                f"--wandb-mode={config.wandb_mode}",
+                f"--run={run_name}",
             ]
-            if config.mixture:
-                cmd.append(f"--data-source={config.mixture}")
-            cmd.append(f"--token-multiplier={config.token_multiplier}")
+            if device_type:
+                cmd.append(f"--device-type={device_type}")
         elif config.stage == "sft":
             cmd = [
-                "uv", "run", "python", "-m", "scripts.train.run_sft",
-                f"--depth={config.depth}",
-                f"--device={config.device}",
-                f"--recipe={config.sft_recipe}",
-                f"--epochs={config.sft_epochs}",
-                f"--lr={config.sft_lr}",
+                "uv", "run", "python", "-m", "scripts.chat_sft",
+                f"--run={run_name}",
                 f"--max-seq-len={config.sft_max_seq_len}",
-                f"--output-dir={ckpt_dir}",
-                f"--wandb-mode={config.wandb_mode}",
             ]
             if config.parent_checkpoint:
-                cmd.append(f"--parent={config.parent_checkpoint}")
+                cmd.append(f"--model-tag={config.parent_checkpoint}")
+            if device_type:
+                cmd.append(f"--device-type={device_type}")
         elif config.stage == "grpo":
             cmd = [
-                "uv", "run", "python", "-m", "scripts.train.run_grpo",
-                f"--depth={config.depth}",
-                f"--device={config.device}",
-                f"--curriculum={config.rl_curriculum or 'easy-to-hard'}",
-                f"--kl-coeff={config.rl_kl_coeff}",
-                f"--group-size={config.rl_group_size}",
-                f"--output-dir={ckpt_dir}",
-                f"--wandb-mode={config.wandb_mode}",
+                "uv", "run", "python", "-m", "scripts.chat_rl",
+                f"--run={run_name}",
+                f"--num-samples={config.rl_group_size}",
             ]
             if config.parent_checkpoint:
-                cmd.append(f"--parent={config.parent_checkpoint}")
+                cmd.append(f"--model-tag={config.parent_checkpoint}")
+            if device_type:
+                cmd.append(f"--device-type={device_type}")
         else:
             raise ValueError(f"Unknown stage: {config.stage}")
 
-        logger.info("Running locally: %s", " ".join(cmd))
+        logger.info("Running locally via nanochat: %s", " ".join(cmd))
         start = time.monotonic()
         subprocess.run(cmd, check=True)
         elapsed = (time.monotonic() - start) / 3600
 
-        final_ckpt = str(ckpt_dir / "final.pt")
-        best_ckpt = str(ckpt_dir / "best.pt")
-        if not Path(best_ckpt).exists():
-            best_ckpt = final_ckpt
-
         return TrainResult(
-            best_checkpoint=best_ckpt,
-            final_checkpoint=final_ckpt,
+            best_checkpoint=f"checkpoints/{config.experiment_id}",
+            final_checkpoint=f"checkpoints/{config.experiment_id}",
             final_loss=0.0,
             wall_clock_hours=elapsed,
             tokens_seen=0,
