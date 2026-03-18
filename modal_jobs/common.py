@@ -1,4 +1,4 @@
-"""Shared Modal infrastructure: image, volumes, app."""
+"""Shared Modal infrastructure: app, image, volumes, secrets."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ try:
         "/results": vol_results,
     }
 
-    # Base image for all training jobs
+    # Single image for all training jobs (includes eval deps)
     train_image = (
         modal.Image.debian_slim(python_version="3.11")
         .pip_install(
@@ -33,30 +33,7 @@ try:
         )
     )
 
-    # Lighter image for eval-only jobs
-    eval_image = (
-        modal.Image.debian_slim(python_version="3.11")
-        .pip_install(
-            "torch==2.4.0",
-            "transformers>=4.40.0",
-            "tiktoken>=0.6.0",
-            "numpy>=1.26.0",
-        )
-    )
-
-    # CPU-only image for data prep
-    data_image = (
-        modal.Image.debian_slim(python_version="3.11")
-        .pip_install(
-            "datasets>=2.18.0",
-            "tiktoken>=0.6.0",
-            "numpy>=1.26.0",
-            "huggingface-hub>=0.22.0",
-        )
-    )
-
     WANDB_SECRET = modal.Secret.from_name("wandb-secret")
-    HF_SECRET = modal.Secret.from_name("hf-secret")
 
 except ImportError:
     # Modal not installed — stubs for import compatibility
@@ -66,7 +43,4 @@ except ImportError:
     vol_results = None
     VOLUME_MOUNTS = {}
     train_image = None
-    eval_image = None
-    data_image = None
     WANDB_SECRET = None
-    HF_SECRET = None
