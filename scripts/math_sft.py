@@ -29,10 +29,77 @@ from nanochat.common import autodetect_device_type
 from nanochat.loss_eval import evaluate_bpb
 
 
+def tokenize_chat_sample(messages: list[dict], tokenizer, max_seq_len: int):
+    """Tokenize a chat-format sample (system/user/assistant messages).
+
+    Returns (input_ids, loss_mask) or None if invalid.
+    Loss mask = 1 for assistant tokens only.
+    """
+    bos_id = tokenizer.get_bos_token_id()
+    user_start = tokenizer.encode_special("<|user_start|>")
+    user_end = tokenizer.encode_special("<|user_end|>")
+    asst_start = tokenizer.encode_special("<|assistant_start|>")
+    asst_end = tokenizer.encode_special("<|assistant_end|>")
+
+    ids = [bos_id]
+    mask = [0]
+
+    for msg in messages:
+        role = msg["role"]
+        content = msg.get("content", "")
+        if role == "system":
+            # Prepend system to first user message (nanochat has no system token)
+            continue
+        elif role == "user":
+            # Include system prompt in user message if present
+            system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
+            if system_msg:
+                content = f"{system_msg}\n\n{content}"
+            content_ids = tokenizer.encode(content)
+            ids += [user_start] + content_ids + [user_end]
+            mask += [0] * (1 + len(content_ids) + 1)
+        elif role == "assistant":
+            content_ids = tokenizer.encode(content)
+            ids += [asst_start] + content_ids + [asst_end]
+            mask += [0] + [1] * (len(content_ids) + 1)  # loss on solution + asst_end
+
+    # Truncate
+    max_len = max_seq_len + 1
+    if len(ids) > max_len:
+        ids = ids[:max_len]
+        mask = mask[:max_len]
+
+    if sum(mask) < 3:
+        return None
+    return (ids, mask)
+
+
+def load_jsonl_data(path: str, tokenizer, max_seq_len: int, n_samples: int = -1):
+    """Load prepared JSONL data (from prepare_sft.py).
+
+    Each line is {"messages": [{"role": ..., "content": ...}, ...]}.
+    Returns list of (input_ids, loss_mask).
+    """
+    samples = []
+    skipped = 0
+
+    with open(path) as f:
+        for i, line in enumerate(f):
+            if n_samples > 0 and len(samples) >= n_samples:
+                break
+            row = json.loads(line)
+            result = tokenize_chat_sample(row["messages"], tokenizer, max_seq_len)
+            if result is None:
+                skipped += 1
+                continue
+            samples.append(result)
+
+    print(f"Loaded {len(samples)} samples from {path} ({skipped} skipped)")
+    return samples
+
+
 def load_gsm8k_train(tokenizer, max_seq_len: int, n_samples: int = -1):
     """Load GSM8K train split, tokenize as prompt+solution pairs.
-
-    Format: <|bos|><|user_start|>{question}<|user_end|><|assistant_start|>{solution}\n\nThe answer is \\boxed{answer}.<|assistant_end|>
 
     Returns list of (input_ids, loss_mask) where loss_mask=1 for assistant tokens.
     """
@@ -42,50 +109,25 @@ def load_gsm8k_train(tokenizer, max_seq_len: int, n_samples: int = -1):
     if n_samples > 0:
         ds = ds.select(range(min(n_samples, len(ds))))
 
-    bos_id = tokenizer.get_bos_token_id()
     samples = []
     skipped = 0
 
     for row in ds:
         question = row["question"]
-        # Extract answer from GSM8K format (solution text #### answer)
         parts = row["answer"].split("####")
         solution = parts[0].strip()
         answer = parts[-1].strip()
-
-        # Format as chat with \boxed{} answer
-        user_msg = question
         assistant_msg = f"{solution}\n\nThe answer is \\boxed{{{answer}}}."
 
-        # Tokenize each part
-        # <|bos|><|user_start|>question<|user_end|><|assistant_start|>solution<|assistant_end|>
-        user_start = tokenizer.encode_special("<|user_start|>")
-        user_end = tokenizer.encode_special("<|user_end|>")
-        asst_start = tokenizer.encode_special("<|assistant_start|>")
-        asst_end = tokenizer.encode_special("<|assistant_end|>")
-
-        user_ids = tokenizer.encode(user_msg)
-        asst_ids = tokenizer.encode(assistant_msg)
-
-        # Full sequence
-        ids = [bos_id, user_start] + user_ids + [user_end, asst_start] + asst_ids + [asst_end]
-
-        # Loss mask: 0 for everything up to and including <|assistant_start|>, 1 for solution + <|assistant_end|>
-        prompt_len = 1 + 1 + len(user_ids) + 1 + 1  # bos + user_start + question + user_end + asst_start
-        mask = [0] * prompt_len + [1] * (len(asst_ids) + 1)  # +1 for asst_end
-
-        # Truncate to max_seq_len + 1 (for shifted targets)
-        max_len = max_seq_len + 1
-        if len(ids) > max_len:
-            ids = ids[:max_len]
-            mask = mask[:max_len]
-
-        # Skip if too short (need at least some solution tokens)
-        if sum(mask) < 3:
+        messages = [
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": assistant_msg},
+        ]
+        result = tokenize_chat_sample(messages, tokenizer, max_seq_len)
+        if result is None:
             skipped += 1
             continue
-
-        samples.append((ids, mask))
+        samples.append(result)
 
     print(f"Loaded {len(samples)} GSM8K samples ({skipped} skipped as too long)")
     return samples
@@ -135,6 +177,7 @@ def main():
     parser.add_argument("--max-seq-len", type=int, default=512, help="max sequence length")
     parser.add_argument("--eval-every", type=int, default=50, help="eval every N steps")
     parser.add_argument("--save-every", type=int, default=100, help="save checkpoint every N steps")
+    parser.add_argument("--data", type=str, default=None, help="path to prepared JSONL (from prepare_sft.py). If not set, loads GSM8K directly")
     parser.add_argument("--n-samples", type=int, default=-1, help="limit training samples (-1=all)")
     parser.add_argument("--warmup-steps", type=int, default=20, help="LR warmup steps")
     args = parser.parse_args()
@@ -155,8 +198,12 @@ def main():
     model = torch.compile(model, dynamic=False)
 
     # Load data
-    print(f"\nLoading GSM8K training data...")
-    samples = load_gsm8k_train(tokenizer, args.max_seq_len, n_samples=args.n_samples)
+    if args.data:
+        print(f"\nLoading prepared data from {args.data}...")
+        samples = load_jsonl_data(args.data, tokenizer, args.max_seq_len, n_samples=args.n_samples)
+    else:
+        print(f"\nLoading GSM8K training data...")
+        samples = load_gsm8k_train(tokenizer, args.max_seq_len, n_samples=args.n_samples)
     n_samples = len(samples)
     if n_samples == 0:
         print("ERROR: No training samples!")

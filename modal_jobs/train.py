@@ -115,6 +115,7 @@ def run_math_sft(
     max_seq_len: int = 512,
     save_every: int = 100,
     eval_every: int = 50,
+    data: str = "",
 ) -> dict:
     """Run math SFT using our script on Modal."""
     import os
@@ -132,6 +133,8 @@ def run_math_sft(
         f"--save-every={save_every}",
         f"--eval-every={eval_every}",
     ]
+    if data:
+        cmd.append(f"--data=/root/math-nano/{data}")
 
     print(f"[math_sft] Running: {' '.join(cmd)}")
     start = time.monotonic()
