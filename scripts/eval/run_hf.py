@@ -192,8 +192,12 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
 
 
 def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_think",
-             eval_batch_size=16):
-    """Run eval on problems using batched generation. Returns summary dict."""
+             eval_batch_size=1):
+    """Run eval on problems. Returns summary dict.
+
+    eval_batch_size=1 (default) runs sequentially — safe for local/MPS.
+    On GPU (Modal), pass eval_batch_size=8 or 16 for much faster eval.
+    """
     n_correct = 0
     n_extracted = 0
     n_boxed = 0
@@ -205,7 +209,10 @@ def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_thi
     prompts = [make_eval_prompt(p["problem"], tokenizer, prompt_format) for p in problems]
 
     t0 = time.time()
-    outputs = generate_hf_batch(model, tokenizer, prompts, max_tokens=max_tokens, batch_size=eval_batch_size)
+    if eval_batch_size > 1:
+        outputs = generate_hf_batch(model, tokenizer, prompts, max_tokens=max_tokens, batch_size=eval_batch_size)
+    else:
+        outputs = [generate_hf(model, tokenizer, p, max_tokens=max_tokens) for p in prompts]
     total_elapsed = time.time() - t0
     print(f"  Generation done in {total_elapsed:.1f}s ({total_elapsed/len(problems):.1f}s/problem)")
 
@@ -261,7 +268,8 @@ def main():
         "--prompt-format", type=str, default="chat_think",
         choices=["chat_think", "few_shot"],
     )
-    parser.add_argument("--eval-batch-size", type=int, default=16)
+    parser.add_argument("--eval-batch-size", type=int, default=1,
+                        help="Batch size for generation. 1=sequential (local), 8-16=batched (GPU)")
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
 

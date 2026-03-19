@@ -474,6 +474,7 @@ def run_sft_lora(
         f"--n-problems={eval_n_problems}",
         f"--max-tokens={eval_max_tokens}",
         f"--prompt-format={prompt_format}",
+        "--eval-batch-size=8",
         f"--output={eval_output}",
     ]
     eval_result = subprocess.run(
