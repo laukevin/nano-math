@@ -28,10 +28,13 @@ from transformers import (
     TrainingArguments,
 )
 
-INSTRUCTION_PREFIX = (
-    "Solve the following math problem step by step. "
-    "Put your final answer in \\boxed{}.\n\n"
-)
+FEW_SHOT_PREFIX = """Q: There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today?
+A: There are 15 trees originally. Then there were 21 trees after some more were planted. So there must have been 21 - 15 = 6. The answer is \\boxed{6}.
+
+Q: If there are 3 cars in the parking lot and 2 more cars arrive, how many cars are in the parking lot?
+A: There are originally 3 cars. 2 more cars arrive. 3 + 2 = 5. The answer is \\boxed{5}.
+
+Q: """
 
 
 def load_data(path: str, max_samples: int = -1) -> list[dict]:
@@ -68,9 +71,8 @@ def tokenize_sample(
     """
     solution = sample["solution"]
 
-    # Always use plain text format for reliable prefix/solution boundary.
-    # Chat templates (Qwen3 thinking mode) break loss masking.
-    prompt = INSTRUCTION_PREFIX + f"Problem: {sample['problem']}\n\nSolution: "
+    # Few-shot format matching eval. Qwen3 base model responds well to this.
+    prompt = FEW_SHOT_PREFIX + sample["problem"] + "\nA: "
     full_text = prompt + solution + tokenizer.eos_token
     full_ids = tokenizer.encode(full_text, add_special_tokens=True)
     prefix_ids = tokenizer.encode(prompt, add_special_tokens=True)

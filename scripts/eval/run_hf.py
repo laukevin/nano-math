@@ -61,47 +61,22 @@ def load_hf_model(base_model: str, adapter_path: str | None = None):
     return model, tokenizer, n_params
 
 
-def has_chat_template(tokenizer) -> bool:
-    try:
-        tokenizer.apply_chat_template(
-            [{"role": "user", "content": "test"}], tokenize=False
-        )
-        return True
-    except Exception:
-        return False
+FEW_SHOT_PROMPT = """Q: There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today?
+A: There are 15 trees originally. Then there were 21 trees after some more were planted. So there must have been 21 - 15 = 6. The answer is \\boxed{6}.
+
+Q: If there are 3 cars in the parking lot and 2 more cars arrive, how many cars are in the parking lot?
+A: There are originally 3 cars. 2 more cars arrive. 3 + 2 = 5. The answer is \\boxed{5}.
+
+Q: """
 
 
-def make_eval_prompt(problem: str, tokenizer, use_chat: bool) -> str:
-    """Format eval prompt using chat template or plain text."""
-    instruction = (
-        "Solve the following math problem step by step. "
-        "Put your final answer in \\boxed{}.\n\n" + problem
-    )
-    if use_chat:
-        try:
-            # Disable thinking mode for Qwen3 — we want direct answers
-            return tokenizer.apply_chat_template(
-                [{"role": "user", "content": instruction}],
-                tokenize=False,
-                add_generation_prompt=True,
-                enable_thinking=False,
-            )
-        except TypeError:
-            # Tokenizer doesn't support enable_thinking
-            try:
-                return tokenizer.apply_chat_template(
-                    [{"role": "user", "content": instruction}],
-                    tokenize=False,
-                    add_generation_prompt=True,
-                )
-            except Exception:
-                pass
+def make_eval_prompt(problem: str) -> str:
+    """Format eval prompt using few-shot format.
 
-    return (
-        "Solve the following math problem step by step. "
-        "Put your final answer in \\boxed{}.\n\n"
-        f"Problem: {problem}\n\nSolution:"
-    )
+    Qwen3-0.6B-Base works best with few-shot prompting (not chat template).
+    Chat template with enable_thinking=False produces garbage on the base model.
+    """
+    return FEW_SHOT_PROMPT + problem + "\nA:"
 
 
 @torch.no_grad()
@@ -176,7 +151,7 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
     raise ValueError(f"Unknown benchmark: {name}")
 
 
-def run_eval(model, tokenizer, problems, max_tokens=256, use_chat=False):
+def run_eval(model, tokenizer, problems, max_tokens=256):
     """Run eval on problems. Returns summary dict."""
     n_correct = 0
     n_extracted = 0
@@ -187,7 +162,7 @@ def run_eval(model, tokenizer, problems, max_tokens=256, use_chat=False):
     print("-" * 70)
 
     for i, prob in enumerate(problems):
-        prompt = make_eval_prompt(prob["problem"], tokenizer, use_chat)
+        prompt = make_eval_prompt(prob["problem"])
         t0 = time.time()
         output = generate_hf(model, tokenizer, prompt, max_tokens=max_tokens)
         elapsed = time.time() - t0
@@ -246,9 +221,6 @@ def main():
     model, tokenizer, n_params = load_hf_model(args.base_model, args.adapter)
     print(f"  Params: {n_params:,}")
 
-    use_chat = has_chat_template(tokenizer)
-    print(f"  Chat template: {use_chat}")
-
     all_results = {}
     for bench_name in args.benchmarks.split(","):
         bench_name = bench_name.strip()
@@ -257,7 +229,7 @@ def main():
         print(f"{'='*70}")
 
         problems = load_benchmark(bench_name, n=args.n_problems)
-        summary = run_eval(model, tokenizer, problems, args.max_tokens, use_chat)
+        summary = run_eval(model, tokenizer, problems, args.max_tokens)
         all_results[bench_name] = summary
 
     # Build output
