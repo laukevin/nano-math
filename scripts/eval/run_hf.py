@@ -95,7 +95,7 @@ def make_eval_prompt(problem: str, tokenizer=None, prompt_format: str = "chat_th
 
 @torch.no_grad()
 def generate_hf(model, tokenizer, prompt: str, max_tokens: int = 256) -> str:
-    """Generate completion with HF model (greedy)."""
+    """Generate completion with HF model (greedy), single prompt."""
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     outputs = model.generate(
         **inputs,
@@ -105,6 +105,32 @@ def generate_hf(model, tokenizer, prompt: str, max_tokens: int = 256) -> str:
     )
     generated = outputs[0][inputs["input_ids"].shape[-1] :]
     return tokenizer.decode(generated, skip_special_tokens=True)
+
+
+@torch.no_grad()
+def generate_hf_batch(
+    model, tokenizer, prompts: list[str], max_tokens: int = 256, batch_size: int = 16
+) -> list[str]:
+    """Generate completions for multiple prompts in batches."""
+    all_outputs = []
+    for i in range(0, len(prompts), batch_size):
+        batch_prompts = prompts[i : i + batch_size]
+        inputs = tokenizer(
+            batch_prompts, return_tensors="pt", padding=True, truncation=True,
+        ).to(model.device)
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_tokens,
+            do_sample=False,
+            pad_token_id=tokenizer.pad_token_id,
+        )
+        for j, output in enumerate(outputs):
+            prompt_len = inputs["attention_mask"][j].sum().item()
+            generated = output[prompt_len:]
+            all_outputs.append(
+                tokenizer.decode(generated, skip_special_tokens=True)
+            )
+    return all_outputs
 
 
 def load_benchmark(name: str, n: int = 50) -> list[dict]:
@@ -165,22 +191,25 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
     raise ValueError(f"Unknown benchmark: {name}")
 
 
-def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_think"):
-    """Run eval on problems. Returns summary dict."""
+def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_think",
+             eval_batch_size=16):
+    """Run eval on problems using batched generation. Returns summary dict."""
     n_correct = 0
     n_extracted = 0
     n_boxed = 0
     results = []
 
-    print(f"\nEvaluating {len(problems)} problems (max_tokens={max_tokens}, format={prompt_format})")
+    print(f"\nEvaluating {len(problems)} problems (max_tokens={max_tokens}, format={prompt_format}, batch={eval_batch_size})")
     print("-" * 70)
 
-    for i, prob in enumerate(problems):
-        prompt = make_eval_prompt(prob["problem"], tokenizer, prompt_format)
-        t0 = time.time()
-        output = generate_hf(model, tokenizer, prompt, max_tokens=max_tokens)
-        elapsed = time.time() - t0
+    prompts = [make_eval_prompt(p["problem"], tokenizer, prompt_format) for p in problems]
 
+    t0 = time.time()
+    outputs = generate_hf_batch(model, tokenizer, prompts, max_tokens=max_tokens, batch_size=eval_batch_size)
+    total_elapsed = time.time() - t0
+    print(f"  Generation done in {total_elapsed:.1f}s ({total_elapsed/len(problems):.1f}s/problem)")
+
+    for i, (prob, output) in enumerate(zip(problems, outputs)):
         extracted = extract_answer(output)
         gt = normalize_answer(str(prob["answer"]))
         correct = extracted is not None and extracted == gt
@@ -198,7 +227,6 @@ def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_thi
                 "correct": correct,
                 "extracted": extracted,
                 "ground_truth": gt,
-                "time_s": elapsed,
                 "output_preview": output[:200],
             }
         )
@@ -206,7 +234,7 @@ def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_thi
         status = "CORRECT" if correct else ("EXTRACTED" if extracted else "NO_ANS")
         print(
             f"  [{i+1:3d}/{len(problems)}] {status:9s} "
-            f"gt={gt:>8s} pred={str(extracted):>8s} | {elapsed:.1f}s"
+            f"gt={gt:>8s} pred={str(extracted):>8s}"
         )
 
     n = len(problems)
@@ -233,6 +261,7 @@ def main():
         "--prompt-format", type=str, default="chat_think",
         choices=["chat_think", "few_shot"],
     )
+    parser.add_argument("--eval-batch-size", type=int, default=16)
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
 
@@ -248,7 +277,8 @@ def main():
         print(f"{'='*70}")
 
         problems = load_benchmark(bench_name, n=args.n_problems)
-        summary = run_eval(model, tokenizer, problems, args.max_tokens, args.prompt_format)
+        summary = run_eval(model, tokenizer, problems, args.max_tokens, args.prompt_format,
+                           eval_batch_size=args.eval_batch_size)
         all_results[bench_name] = summary
 
     # Build output
