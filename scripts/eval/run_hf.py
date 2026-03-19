@@ -70,12 +70,26 @@ A: There are originally 3 cars. 2 more cars arrive. 3 + 2 = 5. The answer is \\b
 Q: """
 
 
-def make_eval_prompt(problem: str) -> str:
-    """Format eval prompt using few-shot format.
+def make_eval_prompt(problem: str, tokenizer=None, prompt_format: str = "chat_think") -> str:
+    """Format eval prompt.
 
-    Qwen3-0.6B-Base works best with few-shot prompting (not chat template).
-    Chat template with enable_thinking=False produces garbage on the base model.
+    chat_think: Qwen3 chat template with enable_thinking=True. Model generates
+    <think>reasoning</think> then \\boxed{answer}. Best for generalization.
+
+    few_shot: Plain text Q&A with 2 examples. Works on base model without SFT.
     """
+    if prompt_format == "chat_think" and tokenizer is not None:
+        instruction = (
+            "Solve the following math problem step by step. "
+            "Put your final answer in \\boxed{}.\n\n" + problem
+        )
+        return tokenizer.apply_chat_template(
+            [{"role": "user", "content": instruction}],
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=True,
+        )
+
     return FEW_SHOT_PROMPT + problem + "\nA:"
 
 
@@ -151,18 +165,18 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
     raise ValueError(f"Unknown benchmark: {name}")
 
 
-def run_eval(model, tokenizer, problems, max_tokens=256):
+def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_think"):
     """Run eval on problems. Returns summary dict."""
     n_correct = 0
     n_extracted = 0
     n_boxed = 0
     results = []
 
-    print(f"\nEvaluating {len(problems)} problems (max_tokens={max_tokens})")
+    print(f"\nEvaluating {len(problems)} problems (max_tokens={max_tokens}, format={prompt_format})")
     print("-" * 70)
 
     for i, prob in enumerate(problems):
-        prompt = make_eval_prompt(prob["problem"])
+        prompt = make_eval_prompt(prob["problem"], tokenizer, prompt_format)
         t0 = time.time()
         output = generate_hf(model, tokenizer, prompt, max_tokens=max_tokens)
         elapsed = time.time() - t0
@@ -215,11 +229,16 @@ def main():
     parser.add_argument("--benchmarks", type=str, default="gsm8k,svamp")
     parser.add_argument("--n-problems", type=int, default=50)
     parser.add_argument("--max-tokens", type=int, default=256)
+    parser.add_argument(
+        "--prompt-format", type=str, default="chat_think",
+        choices=["chat_think", "few_shot"],
+    )
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
 
     model, tokenizer, n_params = load_hf_model(args.base_model, args.adapter)
     print(f"  Params: {n_params:,}")
+    print(f"  Prompt format: {args.prompt_format}")
 
     all_results = {}
     for bench_name in args.benchmarks.split(","):
@@ -229,7 +248,7 @@ def main():
         print(f"{'='*70}")
 
         problems = load_benchmark(bench_name, n=args.n_problems)
-        summary = run_eval(model, tokenizer, problems, args.max_tokens)
+        summary = run_eval(model, tokenizer, problems, args.max_tokens, args.prompt_format)
         all_results[bench_name] = summary
 
     # Build output

@@ -60,25 +60,73 @@ def load_data(path: str, max_samples: int = -1) -> list[dict]:
 
 
 
-def tokenize_sample(
+def tokenize_chat_think(
     sample: dict, tokenizer, max_seq_len: int
 ) -> dict | None:
-    """Tokenize a (problem, solution) pair with loss masking on solution only.
+    """Tokenize using Qwen3 chat template with thinking mode.
 
-    Uses plain text format for reliable prefix/solution boundary detection.
-    Chat templates (especially Qwen3's thinking mode) can make the prefix
-    longer than the full sequence, breaking loss masking.
+    Format: user asks problem → assistant produces <think>reasoning</think>\\boxed{answer}
+    Loss is only on the assistant's response (after the generation prompt).
+
+    Note: apply_chat_template(tokenize=True) returns a BatchEncoding dict,
+    so we access .input_ids to get the token list.
     """
+    problem = (
+        "Solve the following math problem step by step. "
+        "Put your final answer in \\boxed{}.\n\n" + sample["problem"]
+    )
     solution = sample["solution"]
 
-    # Few-shot format matching eval. Qwen3 base model responds well to this.
+    msgs_full = [
+        {"role": "user", "content": problem},
+        {"role": "assistant", "content": solution},
+    ]
+    msgs_prefix = [{"role": "user", "content": problem}]
+
+    # Full conversation (thinking=True wraps solution in empty <think></think>)
+    full_enc = tokenizer.apply_chat_template(
+        msgs_full, tokenize=True, return_dict=True, enable_thinking=True
+    )
+    full_ids = full_enc["input_ids"]
+
+    # Prefix = user message + generation prompt (assistant\n)
+    prefix_enc = tokenizer.apply_chat_template(
+        msgs_prefix, tokenize=True, return_dict=True,
+        add_generation_prompt=True, enable_thinking=True,
+    )
+    prefix_ids = prefix_enc["input_ids"]
+    prefix_len = len(prefix_ids)
+
+    # Truncate
+    if len(full_ids) > max_seq_len:
+        full_ids = full_ids[:max_seq_len]
+
+    prefix_len = min(prefix_len, len(full_ids))
+    labels = [-100] * prefix_len + list(full_ids[prefix_len:])
+    full_ids = list(full_ids)
+
+    n_loss_tokens = sum(1 for l in labels if l != -100)
+    if n_loss_tokens < 5:
+        return None
+
+    return {
+        "input_ids": full_ids,
+        "attention_mask": [1] * len(full_ids),
+        "labels": labels,
+    }
+
+
+def tokenize_few_shot(
+    sample: dict, tokenizer, max_seq_len: int
+) -> dict | None:
+    """Tokenize using few-shot Q&A format (plain text, no chat template)."""
+    solution = sample["solution"]
     prompt = FEW_SHOT_PREFIX + sample["problem"] + "\nA: "
     full_text = prompt + solution + tokenizer.eos_token
     full_ids = tokenizer.encode(full_text, add_special_tokens=True)
     prefix_ids = tokenizer.encode(prompt, add_special_tokens=True)
     prefix_len = len(prefix_ids)
 
-    # Truncate
     if len(full_ids) > max_seq_len:
         full_ids = full_ids[:max_seq_len]
 
@@ -109,6 +157,11 @@ def main():
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
+    parser.add_argument(
+        "--prompt-format", type=str, default="chat_think",
+        choices=["chat_think", "few_shot"],
+        help="Prompt format: chat_think (Qwen3 thinking mode) or few_shot (plain text Q&A)",
+    )
     args = parser.parse_args()
 
     start_time = time.time()
@@ -140,6 +193,8 @@ def main():
     model.print_trainable_parameters()
 
     # Data
+    tokenize_fn = tokenize_chat_think if args.prompt_format == "chat_think" else tokenize_few_shot
+    print(f"Prompt format: {args.prompt_format}")
     print(f"Loading data from {args.data}...")
     raw = load_data(args.data, args.data_size)
     print(f"  Raw samples: {len(raw)}")
@@ -147,7 +202,7 @@ def main():
     tokenized = []
     skipped = 0
     for i, s in enumerate(raw):
-        tok = tokenize_sample(s, tokenizer, args.max_seq_len)
+        tok = tokenize_fn(s, tokenizer, args.max_seq_len)
         if tok is not None:
             tokenized.append(tok)
             if i < 3:

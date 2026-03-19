@@ -373,9 +373,10 @@ def run_sft_lora(
     batch_size: int = 8,
     max_seq_len: int = 2048,
     lora_rank: int = 16,
+    prompt_format: str = "chat_think",
     eval_benchmarks: str = "gsm8k,svamp",
     eval_n_problems: int = 50,
-    eval_max_tokens: int = 256,
+    eval_max_tokens: int = 1024,
 ) -> dict:
     """Run LoRA SFT on a HuggingFace model, eval, and log to registry.
 
@@ -444,6 +445,7 @@ def run_sft_lora(
         f"--batch-size={batch_size}",
         f"--max-seq-len={max_seq_len}",
         f"--lora-rank={lora_rank}",
+        f"--prompt-format={prompt_format}",
     ]
     if data_size > 0:
         sft_cmd.append(f"--data-size={data_size}")
@@ -472,6 +474,7 @@ def run_sft_lora(
         f"--benchmarks={eval_benchmarks}",
         f"--n-problems={eval_n_problems}",
         f"--max-tokens={eval_max_tokens}",
+        f"--prompt-format={prompt_format}",
         f"--output={eval_output}",
     ]
     eval_result = subprocess.run(
@@ -501,6 +504,7 @@ def run_sft_lora(
         "experiment_id": experiment_id,
         "base_model": base_model,
         "method": "sft-lora",
+        "prompt_format": prompt_format,
         "data_source": data_source,
         "data_size": training_meta.get("data_size", data_size),
         "lora_rank": lora_rank,
