@@ -399,7 +399,20 @@ def run_sft_lora(
     data_dir = f"/data/sft/{data_source}"
     data_path = f"{data_dir}/train.jsonl"
 
-    if not os.path.exists(data_path):
+    # Check if we need to (re-)download data
+    need_download = not os.path.exists(data_path)
+    if not need_download:
+        line_count = sum(1 for _ in open(data_path))
+        if data_size < 0 and line_count < 1000:
+            # Cached file is tiny (likely from a smoke test), re-download full
+            print(f"[data] Cached file only has {line_count} samples, re-downloading full dataset")
+            need_download = True
+        elif data_size > 0 and abs(line_count - data_size) > data_size * 0.1:
+            # Cached file size doesn't match requested size
+            print(f"[data] Cached={line_count} samples, want={data_size}, re-downloading")
+            need_download = True
+
+    if need_download:
         print(f"[data] Preparing {data_source} dataset...")
         os.makedirs(data_dir, exist_ok=True)
         cmd = [
@@ -416,21 +429,7 @@ def run_sft_lora(
             return {"error": "data prep failed", "stderr": result.stderr[-500:]}
         vol_data.commit()
     else:
-        print(f"[data] Using cached {data_source} at {data_path}")
-
-    # If data_size is set but file was cached with more, re-download
-    if data_size > 0:
-        line_count = sum(1 for _ in open(data_path))
-        if line_count > data_size * 1.1:  # >10% over, re-download
-            print(f"[data] Re-preparing {data_source} (cached={line_count}, want={data_size})")
-            cmd = [
-                "python", f"{project}/scripts/data/normalize_dataset.py",
-                f"--dataset={data_source}",
-                f"--output={data_path}",
-                f"--max-samples={data_size}",
-            ]
-            subprocess.run(cmd, capture_output=True, text=True)
-            vol_data.commit()
+        print(f"[data] Using cached {data_source} at {data_path} ({line_count} samples)")
 
     # --- 2. Run SFT ---
     output_dir = f"/checkpoints/{experiment_id}"
