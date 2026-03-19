@@ -188,6 +188,38 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
             )
         return problems
 
+    elif name == "aime_2024":
+        ds = load_dataset("MathArena/aime_2024", split="train")
+        problems = []
+        for i, row in enumerate(ds):
+            if i >= n:
+                break
+            problems.append(
+                {
+                    "id": f"aime24_{i:04d}",
+                    "problem": row["problem"],
+                    "answer": str(row["answer"]),
+                    "source": "aime_2024",
+                }
+            )
+        return problems
+
+    elif name == "aime_2025":
+        ds = load_dataset("MathArena/aime_2025", split="train")
+        problems = []
+        for i, row in enumerate(ds):
+            if i >= n:
+                break
+            problems.append(
+                {
+                    "id": f"aime25_{i:04d}",
+                    "problem": row["problem"],
+                    "answer": str(row["answer"]),
+                    "source": "aime_2025",
+                }
+            )
+        return problems
+
     raise ValueError(f"Unknown benchmark: {name}")
 
 

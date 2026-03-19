@@ -45,6 +45,23 @@ DATASETS = {
         "hf_id": "bespokelabs/Bespoke-Stratos-17k",
         "split": "train",
     },
+    "dartmath": {
+        "hf_id": "hkust-nlp/dart-math-hard",
+        "split": "train",
+    },
+    "mathinstruct": {
+        "hf_id": "TIGER-Lab/MathInstruct",
+        "split": "train",
+    },
+    "numinamath15": {
+        "hf_id": "AI-MO/NuminaMath-1.5",
+        "split": "train",
+    },
+    "acemath": {
+        "hf_id": "nvidia/AceMath-Instruct-Training-Data",
+        "subset": "math_sft",
+        "split": "train",
+    },
 }
 
 
@@ -134,6 +151,60 @@ def normalize_stratos(row: dict) -> dict | None:
     }
 
 
+def normalize_dartmath(row: dict) -> dict | None:
+    problem = row.get("query") or row.get("problem") or ""
+    solution = row.get("response") or row.get("solution") or ""
+    if not problem or not solution:
+        return None
+    return {
+        "problem": problem,
+        "solution": ensure_boxed(solution),
+        "source": "dartmath",
+    }
+
+
+def normalize_mathinstruct(row: dict) -> dict | None:
+    problem = row.get("instruction") or ""
+    solution = row.get("output") or ""
+    if not problem or not solution:
+        return None
+    return {
+        "problem": problem,
+        "solution": ensure_boxed(solution),
+        "source": "mathinstruct",
+    }
+
+
+def normalize_numinamath15(row: dict) -> dict | None:
+    problem = row.get("problem") or ""
+    solution = row.get("solution") or ""
+    if not problem or not solution:
+        return None
+    return {
+        "problem": problem,
+        "solution": ensure_boxed(solution),
+        "source": "numinamath15",
+    }
+
+
+def normalize_acemath(row: dict) -> dict | None:
+    # AceMath uses messages format
+    messages = row.get("messages", [])
+    problem = solution = ""
+    for msg in messages:
+        if msg.get("role") == "user":
+            problem = msg.get("content", "")
+        elif msg.get("role") == "assistant":
+            solution = msg.get("content", "")
+    if not problem or not solution:
+        return None
+    return {
+        "problem": problem,
+        "solution": ensure_boxed(solution),
+        "source": "acemath",
+    }
+
+
 NORMALIZERS = {
     "gsm8k": normalize_gsm8k,
     "metamath": normalize_metamath,
@@ -142,12 +213,16 @@ NORMALIZERS = {
     "openmathinstruct2": normalize_openmathinstruct2,
     "openthoughts3": normalize_openthoughts3,
     "stratos": normalize_stratos,
+    "dartmath": normalize_dartmath,
+    "mathinstruct": normalize_mathinstruct,
+    "numinamath15": normalize_numinamath15,
+    "acemath": normalize_acemath,
 }
 
 
 def main():
     parser = argparse.ArgumentParser(description="Download and normalize math datasets")
-    parser.add_argument("--dataset", required=True, choices=list(DATASETS.keys()))
+    parser.add_argument("--dataset", required=True, choices=sorted(DATASETS.keys()))
     parser.add_argument("--output", required=True, help="Output JSONL path")
     parser.add_argument("--max-samples", type=int, default=-1)
     args = parser.parse_args()

@@ -374,8 +374,8 @@ def run_sft_lora(
     max_seq_len: int = 2048,
     lora_rank: int = 16,
     prompt_format: str = "chat_think",
-    eval_benchmarks: str = "gsm8k,svamp",
-    eval_n_problems: int = 50,
+    eval_benchmarks: str = "svamp,gsm8k,math,aime_2025",
+    eval_n_problems: int = 100,
     eval_max_tokens: int = 1024,
 ) -> dict:
     """Run LoRA SFT on a HuggingFace model, eval, and log to registry.
