@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Optional
 
@@ -49,8 +50,10 @@ def normalize_answer(answer: str) -> str:
     # Try to evaluate as number
     try:
         val = float(answer)
+        if not math.isfinite(val):
+            return answer.lower()
         if val == int(val):
             return str(int(val))
         return str(val)
-    except ValueError:
+    except (ValueError, OverflowError):
         return answer.lower()

@@ -21,8 +21,8 @@ from modal_jobs.common import (
 
 @app.function(
     image=train_image,
-    gpu="T4",
-    timeout=2 * 3600,
+    gpu="A100",
+    timeout=4 * 3600,
     volumes=VOLUME_MOUNTS,
     secrets=[s for s in [WANDB_SECRET] if s is not None],
 )
@@ -101,7 +101,7 @@ def run_pretrain(
 
 @app.function(
     image=train_image,
-    gpu="T4",
+    gpu="A100",
     timeout=2 * 3600,
     volumes=VOLUME_MOUNTS,
     secrets=[s for s in [WANDB_SECRET] if s is not None],
@@ -116,9 +116,11 @@ def run_math_sft(
     eval_every: int = 50,
 ) -> dict:
     """Run math SFT using our script on Modal."""
+    import os
     import subprocess
     import time
 
+    env = {**os.environ, "WANDB_MODE": "disabled", "NANOCHAT_BASE_DIR": "/data"}
     cmd = [
         "python", "/root/math-nano/scripts/math_sft.py",
         f"--model-tag={model_tag}",
@@ -132,7 +134,7 @@ def run_math_sft(
 
     print(f"[math_sft] Running: {' '.join(cmd)}")
     start = time.monotonic()
-    result = subprocess.run(cmd, cwd="/root/math-nano/vendor/nanochat", capture_output=True, text=True)
+    result = subprocess.run(cmd, cwd="/root/math-nano/vendor/nanochat", capture_output=True, text=True, env=env)
     elapsed = time.monotonic() - start
 
     print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
@@ -151,13 +153,14 @@ def run_math_sft(
 
 @app.function(
     image=train_image,
-    gpu="T4",
+    gpu="A100",
     timeout=1 * 3600,
     volumes=VOLUME_MOUNTS,
 )
 def run_math_eval(
     model_tag: str = "d2",
     phase: str = "base",
+    benchmark: str = "gsm8k",
     n_problems: int = 10,
     max_tokens: int = 128,
 ) -> dict:
@@ -169,17 +172,20 @@ def run_math_eval(
         "python", "-m", "scripts.eval.run",
         f"--model-tag={model_tag}",
         f"--phase={phase}",
+        f"--benchmark={benchmark}",
         f"--n-problems={n_problems}",
         f"--max-tokens={max_tokens}",
-        f"--output=/results/eval_{model_tag}_{phase}.json",
+        f"--output=/results/eval_{model_tag}_{phase}_{benchmark}.json",
     ]
+
+    import os
+    env = {**os.environ, "PYTHONPATH": "/root/math-nano", "NANOCHAT_BASE_DIR": "/data"}
 
     print(f"[eval] Running: {' '.join(cmd)}")
     start = time.monotonic()
     result = subprocess.run(
         cmd, cwd="/root/math-nano/vendor/nanochat",
-        capture_output=True, text=True,
-        env={"PYTHONPATH": "/root/math-nano", "PATH": "/usr/bin:/bin"},
+        capture_output=True, text=True, env=env,
     )
     elapsed = time.monotonic() - start
 
