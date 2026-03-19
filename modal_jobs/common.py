@@ -59,9 +59,9 @@ try:
         )
     )
 
-    # Set to None if you haven't created the secret on Modal yet.
-    # Create at: https://modal.com/secrets/create?secret_name=wandb-secret
-    WANDB_SECRET = None
+    # Secrets — set to None if not created on Modal yet
+    WANDB_SECRET = None  # modal.Secret.from_name("wandb-secret")
+    HF_SECRET = modal.Secret.from_name("huggingface-secret")
 
 except ImportError:
     # Modal not installed — stubs for import compatibility
@@ -72,3 +72,4 @@ except ImportError:
     VOLUME_MOUNTS = {}
     train_image = None
     WANDB_SECRET = None
+    HF_SECRET = None

@@ -10,6 +10,7 @@ chat_sft.py (which NaN's on small models due to data packing issues).
 from __future__ import annotations
 
 from modal_jobs.common import (
+    HF_SECRET,
     VOLUME_MOUNTS,
     WANDB_SECRET,
     app,
@@ -24,7 +25,7 @@ from modal_jobs.common import (
     gpu="A100",
     timeout=4 * 3600,
     volumes=VOLUME_MOUNTS,
-    secrets=[s for s in [WANDB_SECRET] if s is not None],
+    secrets=[s for s in [WANDB_SECRET, HF_SECRET] if s is not None],
 )
 def run_pretrain(
     depth: int = 2,
@@ -104,7 +105,7 @@ def run_pretrain(
     gpu="A100",
     timeout=2 * 3600,
     volumes=VOLUME_MOUNTS,
-    secrets=[s for s in [WANDB_SECRET] if s is not None],
+    secrets=[s for s in [WANDB_SECRET, HF_SECRET] if s is not None],
 )
 def run_math_sft(
     model_tag: str = "d2",
@@ -156,6 +157,7 @@ def run_math_sft(
     gpu="A100",
     timeout=1 * 3600,
     volumes=VOLUME_MOUNTS,
+    secrets=[s for s in [HF_SECRET] if s is not None],
 )
 def run_math_eval(
     model_tag: str = "d2",
