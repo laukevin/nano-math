@@ -228,7 +228,8 @@ def main():
 
             # Save checkpoint
             if step % args.save_every == 0 or step == args.num_steps:
-                save_dir = Path.home() / ".cache" / "nanochat" / "mathsft_checkpoints" / args.model_tag
+                base = Path(os.environ.get("NANOCHAT_BASE_DIR", str(Path.home() / ".cache" / "nanochat")))
+                save_dir = base / "mathsft_checkpoints" / args.model_tag
                 save_dir.mkdir(parents=True, exist_ok=True)
                 # Save model weights
                 torch.save(model._orig_mod.state_dict() if hasattr(model, '_orig_mod') else model.state_dict(),

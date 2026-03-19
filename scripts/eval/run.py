@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -50,7 +51,8 @@ def load_nanochat_model(model_tag: str, step: int | None, device: str, phase: st
             model_tag=model_tag, step=None,
         )
         # Load our math SFT weights
-        sft_dir = Path.home() / ".cache" / "nanochat" / "mathsft_checkpoints" / model_tag
+        base = Path(os.environ.get("NANOCHAT_BASE_DIR", str(Path.home() / ".cache" / "nanochat")))
+        sft_dir = base / "mathsft_checkpoints" / model_tag
         if step is None:
             # Find latest step
             pts = sorted(sft_dir.glob("model_*.pt"))
@@ -142,6 +144,55 @@ def _hardcoded_mini() -> list[dict]:
         {"id": "mini_8", "problem": "What is 9 squared?", "answer": "81", "source": "mini"},
         {"id": "mini_9", "problem": "What is 1000 - 999?", "answer": "1", "source": "mini"},
     ]
+
+
+def make_svamp(n: int = 50) -> list[dict]:
+    """Load SVAMP dataset — single-step arithmetic word problems.
+
+    SVAMP is much simpler than GSM8K: each problem requires exactly one
+    arithmetic operation. Good for testing basic math ability.
+    """
+    try:
+        from datasets import load_dataset
+        ds = load_dataset("ChilleD/SVAMP", split="test")
+        problems = []
+        for i, row in enumerate(ds):
+            if i >= n:
+                break
+            problems.append({
+                "id": f"svamp_{i:04d}",
+                "problem": row["question_concat"].strip(),
+                "answer": str(int(float(row["Answer"]))),
+                "source": "svamp",
+            })
+        return problems
+    except Exception as e:
+        print(f"WARNING: Could not load SVAMP dataset: {e}")
+        print("Falling back to generated arithmetic problems")
+        return _generated_arithmetic(n)
+
+
+def _generated_arithmetic(n: int = 50) -> list[dict]:
+    """Generate simple arithmetic problems as fallback."""
+    import random
+    random.seed(42)
+    problems = []
+    for i in range(n):
+        op = random.choice(["+", "-"])
+        if op == "+":
+            a, b = random.randint(1, 100), random.randint(1, 100)
+            answer = a + b
+        else:
+            a = random.randint(10, 200)
+            b = random.randint(1, a)
+            answer = a - b
+        problems.append({
+            "id": f"arith_{i:04d}",
+            "problem": f"What is {a} {op} {b}?",
+            "answer": str(answer),
+            "source": "arithmetic",
+        })
+    return problems
 
 
 def eval_format_score(output: str) -> dict:
@@ -250,6 +301,7 @@ def main():
     parser.add_argument("--device", type=str, default="auto", help="device (auto/cpu/mps/cuda)")
     parser.add_argument("--max-tokens", type=int, default=256, help="max generation tokens")
     parser.add_argument("--n-problems", type=int, default=10, help="number of problems to eval")
+    parser.add_argument("--benchmark", type=str, default="gsm8k", choices=["gsm8k", "svamp"], help="benchmark to eval on")
     parser.add_argument("--output", type=str, default=None, help="save results JSON to this path")
     args = parser.parse_args()
 
@@ -262,7 +314,10 @@ def main():
     print(f"  Config: {meta.get('model_config', {})}")
 
     # Load problems
-    problems = make_gsm8k_mini(n=args.n_problems)
+    if args.benchmark == "svamp":
+        problems = make_svamp(n=args.n_problems)
+    else:
+        problems = make_gsm8k_mini(n=args.n_problems)
     if not problems:
         print("No eval problems available")
         return
@@ -273,6 +328,7 @@ def main():
     total_time = time.time() - start
 
     summary["model_tag"] = args.model_tag
+    summary["benchmark"] = args.benchmark
     summary["step"] = args.step
     summary["n_params"] = n_params
     summary["device"] = device
