@@ -1,75 +1,89 @@
 # Next Steps — math-nano (Seoul)
 
-## Where we are
+## Where we are (as of 2026-03-18)
 
-- **Codebase built from specs**: 19 experiment specs translated into working code — harness (config, runner, gates), eval pipeline (extraction, pass@k, reward), Modal dispatch, launch CLI
-- **nanochat integrated**: Added as git submodule at `vendor/nanochat`. All training (pretrain, SFT, GRPO) calls nanochat directly — no TRL, no HuggingFace Trainer
-- **NoPE support added**: Patched nanochat to support `--pos-encoding=nope` for training without rotary embeddings. Better length generalization for long chain-of-thought math reasoning
-- **Local training verified**: Smoke-tested on Mac M2 96GB via MPS backend. Tokenizer trained, data downloaded, pretrain runs at ~27k tok/sec
-- **Modal configured**: Token set, dispatch wired in `runner.py` and `modal_jobs/train.py`
-- **217 tests passing**: Unit + integration tests cover extraction, pass@k, bootstrap CI, reward, config, gates, registry
+### Infrastructure
+- **Modal pipeline working end-to-end**: pretrain, math SFT, math eval all run on A100s
+- **Modal volumes**: `math-nano-data` (training data, tokenizer, checkpoints), `math-nano-checkpoints`, `math-nano-results`
+- **HuggingFace secrets** wired to Modal for gated dataset access
+- **SFT data pipeline**: `prepare_sft.py` generates JSONL with 5 recipes (gsm8k-only, concise-cot, verbose-cot, quality, progressive), `math_sft.py` accepts `--data` flag to use prepared JSONL
+- **Eval pipeline**: GSM8K + SVAMP benchmarks, extraction, format scoring
+
+### Model: depth-8 (125M params)
+- **Pretrained** on A100: 1680 steps, ~18 min
+- **Base checkpoints**: `/data/base_checkpoints/d8/` on Modal volume
+- **SFT checkpoints**: `/data/mathsft_checkpoints/d8/` — 18 checkpoints total:
+  - Steps 100-1000 (every 100): from GSM8K-only SFT (7.5K samples, 1000 steps)
+  - Steps 500-5000 (every 500): from MetaMath concise-cot SFT (100K samples, 5000 steps)
+
+### Eval results so far
+- **Base model**: GSM8K 2%, SVAMP 4% (barely above random, no \boxed{} format)
+- **GSM8K SFT (1000 steps)**: GSM8K 0%, SVAMP 6% — best result so far
+- **MetaMath SFT (5000 steps)**: GSM8K 0%, SVAMP 0% — worse, likely catastrophic forgetting
+- Key insight: 125M params can sometimes do single-step math (SVAMP) but can't chain steps (GSM8K)
+
+## Active job
+
+**SFT sweep running on Modal** (detached, app `ap-JSTXb7oehmCvqfort7jZXy`):
+- Evaluates base model + all 18 SFT checkpoints on both GSM8K and SVAMP (50 problems each)
+- Will produce accuracy-vs-steps curve to find optimal SFT duration
+- Results saved to `/results/sft_sweep_d8.json` on Modal volume
+- Check status: `uv run modal app list` (look for "ephemeral (detached)")
+- View logs: go to https://modal.com/apps/laukevin/main/ap-JSTXb7oehmCvqfort7jZXy
+
+### To retrieve sweep results when done:
+```bash
+uv run python -c "
+import modal, json
+vol = modal.Volume.from_name('math-nano-results')
+data = b''
+for chunk in vol.read_file('sft_sweep_d8.json'):
+    data += chunk
+results = json.loads(data)
+for r in results['steps']:
+    loss = f\"{r.get('sft_loss', 0):.4f}\" if r.get('sft_loss') else 'n/a'
+    print(f\"step={r['step']:>5}  loss={loss:>8}  gsm8k={r['gsm8k_accuracy']*100:.1f}%  svamp={r['svamp_accuracy']*100:.1f}%\")
+"
+```
 
 ## What to do next
 
-### 1. Run a real local pretrain (hours, not seconds)
-The 20-step smoke test proved the pipeline works. Now run a meaningful pretrain:
+### 1. Analyze SFT sweep results
+Once the sweep finishes, look at the accuracy-vs-steps curve. Key questions:
+- Is there a sweet spot (e.g. 200-400 steps) before accuracy degrades?
+- Does GSM8K ever show signal, or is it always 0% at this model size?
+- How do the GSM8K-SFT checkpoints (100-1000) compare to MetaMath-SFT (500-5000)?
+
+### 2. Try the right SFT recipe at the sweet spot
+Based on sweep results, run SFT with:
+- The best-performing number of steps
+- Possibly fewer, more focused training samples (GSM8K 7.5K worked better than MetaMath 100K)
+- Consider `--n-samples` to limit MetaMath to e.g. 10K most relevant problems
+
+### 3. Scale up the model
+125M params (depth-8) hits a ceiling on math. Try depth-12 or depth-16:
 ```bash
-cd vendor/nanochat
-WANDB_MODE=disabled uv run python -m scripts.base_train \
-    --depth=6 --head-dim=64 --window-pattern=L --pos-encoding=nope \
-    --max-seq-len=2048 --device-batch-size=32 --total-batch-size=16384 \
-    --eval-every=100 --eval-tokens=524288 --core-metric-every=-1 \
-    --sample-every=100 --num-iterations=5000 --run=dummy
+uv run modal run --detach modal_jobs/train.py::run_pretrain --depth 12 --save-every 100 --run-name d12-pretrain
 ```
-This should take ~30-60 min on M2. Compare RoPE vs NoPE at same depth to see if NoPE holds up.
+Larger models should be able to chain reasoning steps for GSM8K.
 
-### 2. Run SFT on the pretrained model
-After pretrain, run SFT with math reasoning data:
-```bash
-cd vendor/nanochat
-curl -L -o ~/.cache/nanochat/identity_conversations.jsonl \
-    https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
-uv run python -m scripts.chat_sft \
-    --max-seq-len=512 --device-batch-size=32 --total-batch-size=16384 \
-    --eval-every=200 --eval-tokens=524288 --num-iterations=1500 --run=dummy
-```
-
-### 3. Fork nanochat for our patches
-Currently `vendor/nanochat` is a submodule pointing to karpathy/nanochat with a local commit on top. To make this reproducible:
-- Fork karpathy/nanochat to your GitHub
-- Update `.gitmodules` to point to the fork
-- Push the NoPE patch to the fork
-
-### 4. Wire up math-specific SFT data
-The SFT recipes in the specs (`sft-concise-cot`, `sft-verbose-cot`, `sft-mixed-cot`) need actual math reasoning datasets. Options:
-- GSM8K / MATH training splits formatted as chat conversations
-- Synthetic CoT data from a stronger model
-- NuminaMath or OpenMathInstruct
-
-### 5. Run the pretrain sweep on Modal (Phase 1)
-Per the experiment specs, sweep across 5 depths with 5 data mixtures:
-```bash
-python -m launch sweep --phase=pretrain --depths=10,12,16,20,24
-```
-This is the first real experiment. Requires Modal credits (~$50-100 for full sweep on H100s).
-
-### 6. Build eval on math benchmarks
-The eval pipeline (`scripts/eval/`) has extraction and pass@k but needs to be wired to actual math benchmarks:
-- GSM8K test set (grade school math)
-- MATH test set (competition math)
-- Need to implement the generation loop: load model, generate solutions, score
-
-### 7. Investigate long-context with NoPE
-Key experiment: train NoPE model at `--max-seq-len=1024`, then evaluate on sequences up to 4096. Compare against RoPE model to measure length generalization. This is the core hypothesis — NoPE should degrade less on longer sequences.
-
-### 8. GRPO implementation
-After SFT works, GRPO is the final training stage:
-- Need a reward model (or use the binary reward function in `scripts/eval/reward.py`)
+### 4. GRPO (reinforcement learning from rewards)
+After finding the best SFT recipe, GRPO is the next training stage:
+- Uses binary reward from `scripts/eval/reward.py` (correct answer = 1, wrong = 0)
 - nanochat's `chat_rl.py` handles the RL loop
-- Key hyperparams to sweep: group_size, kl_coeff, curriculum ordering
+- Key hyperparams: group_size, kl_coeff
 
-## Architecture decisions to revisit
+### 5. Remaining SFT recipes to try
+- `quality`: competition math (needs alternative to `hendrycks/competition_math` which is gated)
+- `progressive`: curriculum-based, starts with easy problems, increases difficulty
+- `verbose-cot`: detailed step-by-step (may work better for smaller models that need more scaffolding)
 
-- **NoPE vs ALiBi**: We implemented NoPE. ALiBi is another option that adds linear attention biases — proven length extrapolation but requires modifying the attention kernel interface. Worth comparing if NoPE doesn't generalize well enough.
-- **Submodule vs vendored copy**: Currently using git submodule. If we diverge significantly from upstream nanochat, a vendored copy with our patches applied might be simpler.
-- **Eval framework**: Current eval is homebrew. Consider integrating lm-evaluation-harness for standardized benchmarks if we need comparability with published results.
+### 6. NoPE length generalization experiment
+Train at `--max-seq-len=512`, evaluate at 1024+. The core hypothesis — NoPE should generalize to longer sequences without degradation.
+
+## Architecture decisions
+- **NoPE + window-pattern=L**: Required for MPS (no Flash Attention), also good for length generalization
+- **T4 doesn't support bf16**: Use A10G+ for real runs
+- **Modal volumes need vol.commit()**: Writes are NOT auto-persisted
+- **Python 3.12 required**: torch 2.10 has CSE typing bug on 3.11
+- **NANOCHAT_BASE_DIR=/data**: Tells nanochat to use Modal volume instead of ~/.cache

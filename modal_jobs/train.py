@@ -207,3 +207,146 @@ def run_math_eval(
         "exit_code": result.returncode,
         "wall_clock_s": elapsed,
     }
+
+
+@app.function(
+    image=train_image,
+    gpu="A100",
+    timeout=4 * 3600,
+    volumes=VOLUME_MOUNTS,
+    secrets=[s for s in [HF_SECRET] if s is not None],
+)
+def run_sft_sweep(
+    model_tag: str = "d8",
+    n_problems: int = 50,
+    max_tokens: int = 256,
+) -> dict:
+    """Eval across all SFT checkpoints to find optimal training duration.
+
+    Loads the base model once, then swaps in SFT weights at each checkpoint
+    step and runs eval. Also evals the base (pre-SFT) model as step 0.
+    """
+    import json
+    import os
+    import sys
+    from pathlib import Path
+
+    import torch
+
+    project_root = Path("/root/math-nano")
+    nanochat_dir = project_root / "vendor" / "nanochat"
+    sys.path.insert(0, str(project_root))
+    sys.path.insert(0, str(nanochat_dir))
+
+    from nanochat.checkpoint_manager import load_model
+    from scripts.eval.run import run_eval, make_gsm8k_mini, make_svamp
+
+    base_dir = Path(os.environ.get("NANOCHAT_BASE_DIR", "/data"))
+    os.environ["NANOCHAT_BASE_DIR"] = str(base_dir)
+    device = torch.device("cuda")
+
+    # Load base model (once)
+    print(f"Loading base model (tag={model_tag})...")
+    model, tokenizer, _meta = load_model(
+        "base", device, phase="eval", model_tag=model_tag, step=None,
+    )
+    model.eval()
+    n_params = sum(p.numel() for p in model.parameters())
+    print(f"  Params: {n_params:,}")
+
+    # Save base weights so we can restore between SFT checkpoints
+    base_state = {k: v.clone() for k, v in model.state_dict().items()}
+
+    # Load eval problems (once)
+    gsm8k_problems = make_gsm8k_mini(n=n_problems)
+    svamp_problems = make_svamp(n=n_problems)
+
+    # Find all SFT checkpoints
+    sft_dir = base_dir / "mathsft_checkpoints" / model_tag
+    ckpt_files = sorted(sft_dir.glob("model_*.pt"))
+    steps = []
+    for f in ckpt_files:
+        step_str = f.stem.replace("model_", "")
+        steps.append(int(step_str))
+    steps.sort()
+    print(f"\nFound {len(steps)} SFT checkpoints: {steps}")
+
+    all_results = []
+
+    # Eval base model (step 0)
+    print("\n" + "=" * 70)
+    print("Evaluating BASE model (step 0, no SFT)")
+    print("=" * 70)
+    model.load_state_dict(base_state)
+    gsm8k_summary = run_eval(model, tokenizer, "cuda", gsm8k_problems, max_tokens=max_tokens)
+    svamp_summary = run_eval(model, tokenizer, "cuda", svamp_problems, max_tokens=max_tokens)
+    all_results.append({
+        "step": 0,
+        "phase": "base",
+        "gsm8k_accuracy": gsm8k_summary["accuracy"],
+        "gsm8k_extraction": gsm8k_summary["extraction_rate"],
+        "gsm8k_format_boxed": gsm8k_summary["format_boxed_rate"],
+        "svamp_accuracy": svamp_summary["accuracy"],
+        "svamp_extraction": svamp_summary["extraction_rate"],
+        "svamp_format_boxed": svamp_summary["format_boxed_rate"],
+    })
+
+    # Eval each SFT checkpoint
+    for step in steps:
+        print(f"\n{'=' * 70}")
+        print(f"Evaluating SFT checkpoint step={step}")
+        print("=" * 70)
+
+        sft_path = sft_dir / f"model_{step:06d}.pt"
+        state_dict = torch.load(sft_path, map_location=device, weights_only=True)
+        model.load_state_dict(state_dict)
+        model.eval()
+
+        gsm8k_summary = run_eval(model, tokenizer, "cuda", gsm8k_problems, max_tokens=max_tokens)
+        svamp_summary = run_eval(model, tokenizer, "cuda", svamp_problems, max_tokens=max_tokens)
+
+        # Load SFT meta for training loss
+        meta_path = sft_dir / f"meta_{step:06d}.json"
+        sft_loss = None
+        if meta_path.exists():
+            with open(meta_path) as f:
+                sft_meta = json.load(f)
+            sft_loss = sft_meta.get("loss")
+
+        all_results.append({
+            "step": step,
+            "phase": "mathsft",
+            "sft_loss": sft_loss,
+            "gsm8k_accuracy": gsm8k_summary["accuracy"],
+            "gsm8k_extraction": gsm8k_summary["extraction_rate"],
+            "gsm8k_format_boxed": gsm8k_summary["format_boxed_rate"],
+            "svamp_accuracy": svamp_summary["accuracy"],
+            "svamp_extraction": svamp_summary["extraction_rate"],
+            "svamp_format_boxed": svamp_summary["format_boxed_rate"],
+        })
+
+    # Print summary table
+    print("\n" + "=" * 70)
+    print("SFT SWEEP SUMMARY")
+    print("=" * 70)
+    print(f"{'Step':>6} | {'Loss':>8} | {'GSM8K':>6} | {'SVAMP':>6} | {'GSM8K ext':>9} | {'SVAMP ext':>9} | {'boxed':>6}")
+    print("-" * 70)
+    for r in all_results:
+        loss_str = f"{r.get('sft_loss', 0):.4f}" if r.get("sft_loss") else "   n/a"
+        print(f"{r['step']:>6} | {loss_str:>8} | {r['gsm8k_accuracy']*100:>5.1f}% | {r['svamp_accuracy']*100:>5.1f}% | {r['gsm8k_extraction']*100:>8.1f}% | {r['svamp_extraction']*100:>8.1f}% | {r['gsm8k_format_boxed']*100:>5.1f}%")
+
+    # Save results
+    output = {
+        "model_tag": model_tag,
+        "n_params": n_params,
+        "n_problems": n_problems,
+        "max_tokens": max_tokens,
+        "steps": all_results,
+    }
+    out_path = f"/results/sft_sweep_{model_tag}.json"
+    with open(out_path, "w") as f:
+        json.dump(output, f, indent=2, default=str)
+    print(f"\nResults saved to {out_path}")
+    vol_results.commit()
+
+    return output
