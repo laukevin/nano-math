@@ -22,13 +22,15 @@ try:
     project_root = Path(__file__).parent.parent
 
     # Single image for all training jobs
-    # Matches nanochat's pyproject.toml dependencies
+    # Supports both nanochat (from-scratch) and HF (LoRA SFT) pipelines
     train_image = (
         modal.Image.debian_slim(python_version="3.12")
         .pip_install(
             "torch>=2.4.0",
             "transformers>=4.50.0",
             "datasets>=4.0.0",
+            "peft>=0.15.0",
+            "accelerate>=1.0.0",
             "wandb>=0.16.0",
             "tiktoken>=0.11.0",
             "tokenizers>=0.22.0",

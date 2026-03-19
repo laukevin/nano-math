@@ -1,10 +1,9 @@
-"""Modal job: training launcher that calls nanochat directly.
+"""Modal training jobs.
 
-nanochat handles all training (pretrain, SFT, GRPO), model saving,
-eval, and W&B logging. We just pass the right flags.
+Contains both nanochat (from-scratch) and HF (LoRA SFT) pipelines.
 
-For math SFT, we use our own scripts/math_sft.py instead of nanochat's
-chat_sft.py (which NaN's on small models due to data packing issues).
+Nanochat: pretrain, math SFT, eval, SFT sweep
+HF/LoRA: run_sft_lora (Qwen3-0.6B + LoRA SFT + eval + registry)
 """
 
 from __future__ import annotations
@@ -16,6 +15,7 @@ from modal_jobs.common import (
     app,
     train_image,
     vol_checkpoints,
+    vol_data,
     vol_results,
 )
 
@@ -54,7 +54,6 @@ def run_pretrain(
         cmd.append(f"--num-iterations={num_iterations}")
 
     import os
-    from modal_jobs.common import vol_data
 
     base_dir = "/data"
     data_dir = os.path.join(base_dir, "base_data_climbmix")
@@ -350,3 +349,188 @@ def run_sft_sweep(
     vol_results.commit()
 
     return output
+
+
+# ---------------------------------------------------------------------------
+# HF / LoRA SFT pipeline (Qwen3-0.6B + LoRA + eval + registry)
+# ---------------------------------------------------------------------------
+
+
+@app.function(
+    image=train_image,
+    gpu="A100",
+    timeout=4 * 3600,
+    volumes=VOLUME_MOUNTS,
+    secrets=[s for s in [WANDB_SECRET, HF_SECRET] if s is not None],
+)
+def run_sft_lora(
+    experiment_id: str = "sft-test",
+    data_source: str = "gsm8k",
+    data_size: int = -1,
+    base_model: str = "Qwen/Qwen3-0.6B-Base",
+    lr: float = 2e-5,
+    epochs: int = 3,
+    batch_size: int = 8,
+    max_seq_len: int = 2048,
+    lora_rank: int = 16,
+    eval_benchmarks: str = "gsm8k,svamp",
+    eval_n_problems: int = 50,
+    eval_max_tokens: int = 256,
+) -> dict:
+    """Run LoRA SFT on a HuggingFace model, eval, and log to registry.
+
+    Full pipeline:
+    1. Prepare data (download from HF if needed, normalize to JSONL)
+    2. Run LoRA SFT training
+    3. Run eval on benchmarks
+    4. Log results to experiment registry
+    """
+    import json
+    import os
+    import subprocess
+    import time
+
+    os.environ["HF_HOME"] = "/data/hf_cache"
+    project = "/root/math-nano"
+    start_time = time.time()
+
+    # --- 1. Prepare data ---
+    data_dir = f"/data/sft/{data_source}"
+    data_path = f"{data_dir}/train.jsonl"
+
+    if not os.path.exists(data_path):
+        print(f"[data] Preparing {data_source} dataset...")
+        os.makedirs(data_dir, exist_ok=True)
+        cmd = [
+            "python", f"{project}/scripts/data/normalize_dataset.py",
+            f"--dataset={data_source}",
+            f"--output={data_path}",
+        ]
+        if data_size > 0:
+            cmd.append(f"--max-samples={data_size}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        print(result.stdout[-1000:])
+        if result.returncode != 0:
+            print("STDERR:", result.stderr[-500:])
+            return {"error": "data prep failed", "stderr": result.stderr[-500:]}
+        vol_data.commit()
+    else:
+        print(f"[data] Using cached {data_source} at {data_path}")
+
+    # If data_size is set but file was cached with more, re-download
+    if data_size > 0:
+        line_count = sum(1 for _ in open(data_path))
+        if line_count > data_size * 1.1:  # >10% over, re-download
+            print(f"[data] Re-preparing {data_source} (cached={line_count}, want={data_size})")
+            cmd = [
+                "python", f"{project}/scripts/data/normalize_dataset.py",
+                f"--dataset={data_source}",
+                f"--output={data_path}",
+                f"--max-samples={data_size}",
+            ]
+            subprocess.run(cmd, capture_output=True, text=True)
+            vol_data.commit()
+
+    # --- 2. Run SFT ---
+    output_dir = f"/checkpoints/{experiment_id}"
+    print(f"\n[sft] Training {experiment_id}...")
+    sft_cmd = [
+        "python", f"{project}/scripts/train/sft_lora.py",
+        f"--base-model={base_model}",
+        f"--data={data_path}",
+        f"--output-dir={output_dir}",
+        f"--lr={lr}",
+        f"--epochs={epochs}",
+        f"--batch-size={batch_size}",
+        f"--max-seq-len={max_seq_len}",
+        f"--lora-rank={lora_rank}",
+    ]
+    if data_size > 0:
+        sft_cmd.append(f"--data-size={data_size}")
+
+    sft_result = subprocess.run(sft_cmd, capture_output=True, text=True)
+    print(sft_result.stdout[-2000:])
+    if sft_result.returncode != 0:
+        print("STDERR:", sft_result.stderr[-1000:])
+        return {"error": "sft failed", "stderr": sft_result.stderr[-1000:]}
+    vol_checkpoints.commit()
+
+    # Load training metadata
+    meta_path = os.path.join(output_dir, "training_meta.json")
+    training_meta = {}
+    if os.path.exists(meta_path):
+        with open(meta_path) as f:
+            training_meta = json.load(f)
+
+    # --- 3. Run eval ---
+    eval_output = f"/results/eval_{experiment_id}.json"
+    print(f"\n[eval] Evaluating {experiment_id}...")
+    eval_cmd = [
+        "python", f"{project}/scripts/eval/run_hf.py",
+        f"--base-model={base_model}",
+        f"--adapter={output_dir}",
+        f"--benchmarks={eval_benchmarks}",
+        f"--n-problems={eval_n_problems}",
+        f"--max-tokens={eval_max_tokens}",
+        f"--output={eval_output}",
+    ]
+    eval_result = subprocess.run(
+        eval_cmd, capture_output=True, text=True,
+        env={**os.environ, "PYTHONPATH": project},
+    )
+    print(eval_result.stdout[-2000:])
+    if eval_result.returncode != 0:
+        print("STDERR:", eval_result.stderr[-1000:])
+
+    # Load eval results
+    eval_data = {}
+    if os.path.exists(eval_output):
+        with open(eval_output) as f:
+            eval_data = json.load(f)
+
+    elapsed = time.time() - start_time
+
+    # --- 4. Log to registry ---
+    # Build eval summary
+    eval_summary = {}
+    for bench_name, bench_data in eval_data.get("benchmarks", {}).items():
+        eval_summary[f"{bench_name}_greedy"] = bench_data.get("accuracy", 0)
+        eval_summary[f"{bench_name}_extraction"] = bench_data.get("extraction_rate", 0)
+
+    record = {
+        "experiment_id": experiment_id,
+        "base_model": base_model,
+        "method": "sft-lora",
+        "data_source": data_source,
+        "data_size": training_meta.get("data_size", data_size),
+        "lora_rank": lora_rank,
+        "lr": lr,
+        "epochs": epochs,
+        "max_seq_len": max_seq_len,
+        "batch_size": batch_size,
+        "final_loss": training_meta.get("final_loss"),
+        "eval": eval_summary,
+        "checkpoint_path": output_dir,
+        "wall_clock_min": elapsed / 60,
+    }
+
+    # Import and use registry
+    import sys
+    sys.path.insert(0, project)
+    from scripts.registry import append_result
+    append_result(record, "/results/experiment_registry.jsonl")
+
+    vol_results.commit()
+    vol_checkpoints.commit()
+
+    print(f"\n{'='*70}")
+    print(f"EXPERIMENT COMPLETE: {experiment_id}")
+    print(f"  Data: {data_source} ({training_meta.get('data_size', '?')} samples)")
+    print(f"  Loss: {training_meta.get('final_loss', '?')}")
+    for k, v in eval_summary.items():
+        if "greedy" in k:
+            print(f"  {k}: {v*100:.1f}%")
+    print(f"  Time: {elapsed/60:.1f} min")
+    print(f"{'='*70}")
+
+    return record

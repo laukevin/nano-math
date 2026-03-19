@@ -1,89 +1,103 @@
 # Next Steps — math-nano (Seoul)
 
-## Where we are (as of 2026-03-18)
+## Where we are (as of 2026-03-19)
 
-### Infrastructure
-- **Modal pipeline working end-to-end**: pretrain, math SFT, math eval all run on A100s
-- **Modal volumes**: `math-nano-data` (training data, tokenizer, checkpoints), `math-nano-checkpoints`, `math-nano-results`
-- **HuggingFace secrets** wired to Modal for gated dataset access
-- **SFT data pipeline**: `prepare_sft.py` generates JSONL with 5 recipes (gsm8k-only, concise-cot, verbose-cot, quality, progressive), `math_sft.py` accepts `--data` flag to use prepared JSONL
-- **Eval pipeline**: GSM8K + SVAMP benchmarks, extraction, format scoring
+### Phase 1: nanochat from-scratch (complete)
+- **Model**: depth-8 (125M params), pretrained on FineWeb-edu (~524M tokens)
+- **Best result**: SVAMP 6%, GSM8K 0-2% — ceiling hit at this model size
+- **Lesson**: sub-200M models trained from scratch can't chain multi-step math reasoning
 
-### Model: depth-8 (125M params)
-- **Pretrained** on A100: 1680 steps, ~18 min
-- **Base checkpoints**: `/data/base_checkpoints/d8/` on Modal volume
-- **SFT checkpoints**: `/data/mathsft_checkpoints/d8/` — 18 checkpoints total:
-  - Steps 100-1000 (every 100): from GSM8K-only SFT (7.5K samples, 1000 steps)
-  - Steps 500-5000 (every 500): from MetaMath concise-cot SFT (100K samples, 5000 steps)
+### Phase 2: Qwen3-0.6B + LoRA SFT (E2E pipeline working)
+- **Base model**: Qwen/Qwen3-0.6B-Base (606M params, 36T tokens pretraining)
+- **Method**: LoRA SFT (rank 16, 1.66% trainable params = 10M params)
+- **Pipeline**: data prep → SFT → eval → registry, all automated on Modal
+- **Smoke test passed**: 100 GSM8K samples, 1 epoch, loss 0.66→0.56, 12s on A100
 
-### Eval results so far
-- **Base model**: GSM8K 2%, SVAMP 4% (barely above random, no \boxed{} format)
-- **GSM8K SFT (1000 steps)**: GSM8K 0%, SVAMP 6% — best result so far
-- **MetaMath SFT (5000 steps)**: GSM8K 0%, SVAMP 0% — worse, likely catastrophic forgetting
-- Key insight: 125M params can sometimes do single-step math (SVAMP) but can't chain steps (GSM8K)
+## Infrastructure (all working)
 
-## Active job
-
-**SFT sweep running on Modal** (detached, app `ap-JSTXb7oehmCvqfort7jZXy`):
-- Evaluates base model + all 18 SFT checkpoints on both GSM8K and SVAMP (50 problems each)
-- Will produce accuracy-vs-steps curve to find optimal SFT duration
-- Results saved to `/results/sft_sweep_d8.json` on Modal volume
-- Check status: `uv run modal app list` (look for "ephemeral (detached)")
-- View logs: go to https://modal.com/apps/laukevin/main/ap-JSTXb7oehmCvqfort7jZXy
-
-### To retrieve sweep results when done:
+### Running an experiment
 ```bash
-uv run python -c "
-import modal, json
-vol = modal.Volume.from_name('math-nano-results')
-data = b''
-for chunk in vol.read_file('sft_sweep_d8.json'):
-    data += chunk
-results = json.loads(data)
-for r in results['steps']:
-    loss = f\"{r.get('sft_loss', 0):.4f}\" if r.get('sft_loss') else 'n/a'
-    print(f\"step={r['step']:>5}  loss={loss:>8}  gsm8k={r['gsm8k_accuracy']*100:.1f}%  svamp={r['svamp_accuracy']*100:.1f}%\")
-"
+# Single experiment
+uv run modal run modal_jobs/train.py::run_sft_lora \
+  --experiment-id sft-gsm8k \
+  --data-source gsm8k \
+  --data-size -1 \
+  --epochs 3
+
+# With --detach for long runs
+uv run modal run --detach modal_jobs/train.py::run_sft_lora \
+  --experiment-id sft-openthoughts-10k \
+  --data-source openthoughts3 \
+  --data-size 10000
+
+# Check registry
+uv run modal volume get math-nano-results experiment_registry.jsonl
 ```
 
-## What to do next
+### Key files
+- `scripts/train/sft_lora.py` — LoRA SFT training (transformers + peft)
+- `scripts/data/normalize_dataset.py` — Download + normalize HF datasets
+- `scripts/eval/run_hf.py` — Eval HF models on GSM8K/SVAMP/MATH
+- `scripts/registry.py` — Experiment registry (append, read, leaderboard)
+- `modal_jobs/train.py::run_sft_lora()` — Orchestrates: data → train → eval → registry
 
-### 1. Analyze SFT sweep results
-Once the sweep finishes, look at the accuracy-vs-steps curve. Key questions:
-- Is there a sweet spot (e.g. 200-400 steps) before accuracy degrades?
-- Does GSM8K ever show signal, or is it always 0% at this model size?
-- How do the GSM8K-SFT checkpoints (100-1000) compare to MetaMath-SFT (500-5000)?
+### Available datasets
+| ID | HF Path | Size | Notes |
+|----|---------|------|-------|
+| `gsm8k` | `openai/gsm8k` | 7.5K | Grade-school, clean |
+| `metamath` | `meta-math/MetaMathQA` | 395K | Augmented GSM8K+MATH |
+| `numinamath` | `AI-MO/NuminaMath-CoT` | 860K | Competition math |
+| `math` | `lighteval/MATH` | 7.5K | Competition math (AMC/AIME) |
+| `openmathinstruct2` | `nvidia/OpenMathInstruct-2` | 14M | Nemotron-generated |
+| `openthoughts3` | `open-thoughts/OpenThoughts-114k` | 114K | R1-style long CoT |
+| `stratos` | `bespokelabs/Bespoke-Stratos-17k` | 17K | High-quality R1 distillation |
 
-### 2. Try the right SFT recipe at the sweet spot
-Based on sweep results, run SFT with:
-- The best-performing number of steps
-- Possibly fewer, more focused training samples (GSM8K 7.5K worked better than MetaMath 100K)
-- Consider `--n-samples` to limit MetaMath to e.g. 10K most relevant problems
+### Fixed hyperparams (don't sweep these yet)
+- LoRA: rank 16, alpha 32, dropout 0.05
+- LR: 2e-5, cosine schedule, warmup 0.03
+- Batch size: 8, weight decay: 0.01
+- Max seq len: 2048, epochs: 3
 
-### 3. Scale up the model
-125M params (depth-8) hits a ceiling on math. Try depth-12 or depth-16:
-```bash
-uv run modal run --detach modal_jobs/train.py::run_pretrain --depth 12 --save-every 100 --run-name d12-pretrain
-```
-Larger models should be able to chain reasoning steps for GSM8K.
+## Immediate TODO
 
-### 4. GRPO (reinforcement learning from rewards)
-After finding the best SFT recipe, GRPO is the next training stage:
-- Uses binary reward from `scripts/eval/reward.py` (correct answer = 1, wrong = 0)
-- nanochat's `chat_rl.py` handles the RL loop
-- Key hyperparams: group_size, kl_coeff
+### Step 1: Run baseline eval (no SFT)
+- [ ] Eval Qwen3-0.6B-Base on GSM8K, SVAMP, MATH to get baseline numbers
+- [ ] This tells us where the base model starts before any SFT
 
-### 5. Remaining SFT recipes to try
-- `quality`: competition math (needs alternative to `hendrycks/competition_math` which is gated)
-- `progressive`: curriculum-based, starts with easy problems, increases difficulty
-- `verbose-cot`: detailed step-by-step (may work better for smaller models that need more scaffolding)
+### Step 2: First wave — data source comparison (fixed size 10K)
+| Exp ID | Data | Size | Notes |
+|--------|------|------|-------|
+| `sft-gsm8k` | gsm8k | 7.5K | Smallest, simplest, all data |
+| `sft-stratos` | stratos | 10K | High-quality R1 distillation |
+| `sft-metamath-10k` | metamath | 10K | Augmented data |
+| `sft-numinamath-10k` | numinamath | 10K | Competition math |
+| `sft-openmathinstruct-10k` | openmathinstruct2 | 10K | Open-source solutions |
+| `sft-openthoughts-10k` | openthoughts3 | 10K | R1-style long CoT |
+| `sft-math` | math | 7.5K | Competition math, all data |
 
-### 6. NoPE length generalization experiment
-Train at `--max-seq-len=512`, evaluate at 1024+. The core hypothesis — NoPE should generalize to longer sequences without degradation.
+### Step 3: Second wave (based on first wave findings)
+- **Size scaling**: top dataset at 1K, 5K, 10K, 30K, 100K, full
+- **Mixing**: combine top-2 datasets at various ratios
+- **Curriculum**: easy-to-hard vs random ordering
+
+### Step 4: GRPO/RL (after finding best SFT recipe)
+- Use SFT model as starting point for GRPO
+- Outcome reward: correct answer = +1, wrong = 0
+- This is where we expect the biggest gains
+
+## Agent workflow
+1. Read `/results/experiment_registry.jsonl` to see completed experiments
+2. Read this file for the experiment plan
+3. Pick next un-run experiment from the matrix
+4. Launch: `uv run modal run --detach modal_jobs/train.py::run_sft_lora ...`
+5. Results auto-logged to registry on completion
+6. Analyze findings, propose next experiments, update this file
 
 ## Architecture decisions
-- **NoPE + window-pattern=L**: Required for MPS (no Flash Attention), also good for length generalization
-- **T4 doesn't support bf16**: Use A10G+ for real runs
-- **Modal volumes need vol.commit()**: Writes are NOT auto-persisted
-- **Python 3.12 required**: torch 2.10 has CSE typing bug on 3.11
-- **NANOCHAT_BASE_DIR=/data**: Tells nanochat to use Modal volume instead of ~/.cache
+- **Qwen3-0.6B-Base**: best sub-1B base model, 36T pretraining tokens, Apache 2.0
+- **LoRA (not full FT)**: faster iteration (12s for 100 samples), lower memory, easy adapter comparison
+- **Plain text tokenization**: Qwen3's thinking-mode chat template breaks loss masking, plain text is reliable
+- **transformers + peft (not TRL)**: simple SFT loop, TRL adds value for GRPO later
+- **Fixed hyperparams**: focus on data recipe first, tune training later
+- **Modal A100**: bf16 support, good price/performance
+- **Auto-eval + registry**: every experiment gets GSM8K + SVAMP eval, logged automatically
