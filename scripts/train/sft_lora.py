@@ -25,6 +25,7 @@ from transformers import (
     AutoTokenizer,
     DataCollatorForSeq2Seq,
     Trainer,
+    TrainerCallback,
     TrainingArguments,
 )
 
@@ -35,6 +36,64 @@ Q: If there are 3 cars in the parking lot and 2 more cars arrive, how many cars 
 A: There are originally 3 cars. 2 more cars arrive. 3 + 2 = 5. The answer is \\boxed{5}.
 
 Q: """
+
+
+def log_gpu_stats(prefix: str = ""):
+    """Log GPU memory usage if CUDA is available."""
+    if not torch.cuda.is_available():
+        return
+    allocated = torch.cuda.memory_allocated() / 1024**3
+    reserved = torch.cuda.memory_reserved() / 1024**3
+    total = torch.cuda.get_device_properties(0).total_memory / 1024**3
+    print(
+        f"  {prefix}GPU: {allocated:.1f}GB alloc, {reserved:.1f}GB reserved, "
+        f"{total:.1f}GB total ({allocated/total*100:.0f}%)",
+        flush=True,
+    )
+
+
+class ProgressCallback(TrainerCallback):
+    """Log progress every N steps with GPU stats and ETA."""
+
+    def __init__(self, log_every: int = 10):
+        self.log_every = log_every
+        self.train_start = None
+
+    def on_train_begin(self, args, state, control, **kwargs):
+        self.train_start = time.time()
+        log_gpu_stats("Train start: ")
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None:
+            return
+        step = state.global_step
+        max_steps = state.max_steps
+        loss = logs.get("loss", logs.get("train_loss"))
+        lr = logs.get("learning_rate")
+        epoch = logs.get("epoch", 0)
+
+        elapsed = time.time() - self.train_start if self.train_start else 0
+        eta = (elapsed / step * (max_steps - step)) if step > 0 else 0
+
+        parts = [f"Step {step}/{max_steps}"]
+        parts.append(f"epoch {epoch:.2f}")
+        if loss is not None:
+            parts.append(f"loss={loss:.4f}")
+        if lr is not None:
+            parts.append(f"lr={lr:.2e}")
+        parts.append(f"elapsed={elapsed:.0f}s")
+        parts.append(f"ETA={eta:.0f}s")
+
+        print(f"  [train] {' | '.join(parts)}", flush=True)
+
+    def on_save(self, args, state, control, **kwargs):
+        print(f"  [checkpoint] Saved at step {state.global_step}", flush=True)
+        log_gpu_stats("After save: ")
+
+    def on_train_end(self, args, state, control, **kwargs):
+        elapsed = time.time() - self.train_start if self.train_start else 0
+        print(f"  [train] Complete. {state.global_step} steps in {elapsed:.0f}s", flush=True)
+        log_gpu_stats("Train end: ")
 
 
 def load_data(path: str, max_samples: int = -1) -> list[dict]:
@@ -65,7 +124,7 @@ def tokenize_chat_think(
 ) -> dict | None:
     """Tokenize using Qwen3 chat template with thinking mode.
 
-    Format: user asks problem → assistant produces <think>reasoning</think>\\boxed{answer}
+    Format: user asks problem -> assistant produces <think>reasoning</think>\\boxed{answer}
     Loss is only on the assistant's response (after the generation prompt).
 
     Note: apply_chat_template(tokenize=True) returns a BatchEncoding dict,
@@ -144,6 +203,49 @@ def tokenize_few_shot(
     }
 
 
+def pack_sequences(
+    tokenized_samples: list[dict], max_seq_len: int, eos_token_id: int
+) -> list[dict]:
+    """Pack multiple tokenized samples into sequences of max_seq_len."""
+    packed = []
+    current_ids: list[int] = []
+    current_labels: list[int] = []
+
+    for sample in tokenized_samples:
+        ids = sample["input_ids"]
+        labels = sample["labels"]
+
+        # If adding this sample would exceed max_seq_len, flush current
+        if current_ids and len(current_ids) + len(ids) + 1 > max_seq_len:  # +1 for EOS separator
+            pad_len = max_seq_len - len(current_ids)
+            packed.append({
+                "input_ids": current_ids + [eos_token_id] * pad_len,
+                "attention_mask": [1] * len(current_ids) + [0] * pad_len,
+                "labels": current_labels + [-100] * pad_len,
+            })
+            current_ids = []
+            current_labels = []
+
+        # Add EOS separator between samples
+        if current_ids:
+            current_ids.append(eos_token_id)
+            current_labels.append(-100)
+
+        current_ids.extend(ids)
+        current_labels.extend(labels)
+
+    # Flush remaining
+    if current_ids:
+        pad_len = max_seq_len - len(current_ids)
+        packed.append({
+            "input_ids": current_ids + [eos_token_id] * pad_len,
+            "attention_mask": [1] * len(current_ids) + [0] * pad_len,
+            "labels": current_labels + [-100] * pad_len,
+        })
+
+    return packed
+
+
 def main():
     parser = argparse.ArgumentParser(description="LoRA SFT training")
     parser.add_argument("--base-model", type=str, default="Qwen/Qwen3-0.6B-Base")
@@ -162,12 +264,16 @@ def main():
         choices=["chat_think", "few_shot"],
         help="Prompt format: chat_think (Qwen3 thinking mode) or few_shot (plain text Q&A)",
     )
+    parser.add_argument(
+        "--packing", action="store_true", default=False,
+        help="Pack multiple samples into max_seq_len windows to reduce padding waste",
+    )
     args = parser.parse_args()
 
     start_time = time.time()
 
     # Load model + tokenizer
-    print(f"Loading model: {args.base_model}")
+    print(f"Loading model: {args.base_model}", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -177,6 +283,7 @@ def main():
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
     )
+    log_gpu_stats("After model load: ")
 
     # LoRA
     lora_config = LoraConfig(
@@ -194,31 +301,57 @@ def main():
 
     # Data
     tokenize_fn = tokenize_chat_think if args.prompt_format == "chat_think" else tokenize_few_shot
-    print(f"Prompt format: {args.prompt_format}")
-    print(f"Loading data from {args.data}...")
+    print(f"Prompt format: {args.prompt_format}", flush=True)
+    print(f"Loading data from {args.data}...", flush=True)
     raw = load_data(args.data, args.data_size)
-    print(f"  Raw samples: {len(raw)}")
+    print(f"  Raw samples: {len(raw)}", flush=True)
 
     tokenized = []
     skipped = 0
+    seq_lengths = []
     for i, s in enumerate(raw):
         tok = tokenize_fn(s, tokenizer, args.max_seq_len)
         if tok is not None:
             tokenized.append(tok)
+            seq_lengths.append(len(tok["input_ids"]))
             if i < 3:
                 n_loss = sum(1 for l in tok["labels"] if l != -100)
-                print(f"  Sample {i}: {len(tok['input_ids'])} tokens, {n_loss} loss tokens")
+                print(f"  Sample {i}: {len(tok['input_ids'])} tokens, {n_loss} loss tokens", flush=True)
         else:
             skipped += 1
             if skipped <= 3:
-                print(f"  SKIPPED sample {i}: problem={len(s['problem'])} chars, solution={len(s['solution'])} chars")
-    print(f"  Tokenized: {len(tokenized)}, skipped: {skipped}")
+                print(f"  SKIPPED sample {i}: problem={len(s['problem'])} chars, solution={len(s['solution'])} chars", flush=True)
+
+    if seq_lengths:
+        avg_len = sum(seq_lengths) / len(seq_lengths)
+        max_len = max(seq_lengths)
+        min_len = min(seq_lengths)
+        print(f"  Tokenized: {len(tokenized)}, skipped: {skipped}", flush=True)
+        print(f"  Seq lengths: avg={avg_len:.0f}, min={min_len}, max={max_len}", flush=True)
+    else:
+        print(f"  Tokenized: {len(tokenized)}, skipped: {skipped}", flush=True)
 
     if not tokenized:
-        print("ERROR: No valid training samples!")
+        print("ERROR: No valid training samples!", flush=True)
         return
 
+    if args.packing:
+        orig_count = len(tokenized)
+        tokenized = pack_sequences(tokenized, args.max_seq_len, tokenizer.eos_token_id)
+        packed_count = len(tokenized)
+        total_orig_tokens = sum(len(s["input_ids"]) for s in tokenized)
+        total_non_pad = sum(sum(1 for m in s["attention_mask"] if m == 1) for s in tokenized)
+        ratio = orig_count / packed_count if packed_count > 0 else 0
+        print(f"  Packing: {orig_count} samples -> {packed_count} packed sequences "
+              f"(ratio: {ratio:.1f}x, utilization: {total_non_pad / total_orig_tokens * 100:.0f}%)", flush=True)
+
     dataset = Dataset.from_list(tokenized)
+
+    # Compute total steps for logging
+    steps_per_epoch = len(dataset) // (args.batch_size * args.gradient_accumulation_steps)
+    total_steps = steps_per_epoch * args.epochs
+    print(f"\n  Dataset: {len(dataset)} sequences", flush=True)
+    print(f"  Steps/epoch: {steps_per_epoch}, total steps: {total_steps}", flush=True)
 
     # Training
     os.makedirs(args.output_dir, exist_ok=True)
@@ -247,9 +380,12 @@ def main():
         data_collator=DataCollatorForSeq2Seq(
             tokenizer, padding=True, pad_to_multiple_of=8
         ),
+        callbacks=[ProgressCallback(log_every=10)],
     )
 
-    print(f"\nTraining: {args.epochs} epochs, batch={args.batch_size}, lr={args.lr}")
+    print(f"\nTraining: {args.epochs} epochs, batch={args.batch_size}, "
+          f"grad_accum={args.gradient_accumulation_steps}, lr={args.lr}", flush=True)
+    log_gpu_stats("Before train: ")
     trainer.train()
 
     # Save adapter
@@ -276,6 +412,7 @@ def main():
         "lr": args.lr,
         "max_seq_len": args.max_seq_len,
         "batch_size": args.batch_size,
+        "packing": args.packing,
         "final_loss": final_loss,
         "wall_clock_s": elapsed,
         "log_history": trainer.state.log_history,
@@ -283,7 +420,7 @@ def main():
     with open(os.path.join(args.output_dir, "training_meta.json"), "w") as f:
         json.dump(meta, f, indent=2, default=str)
 
-    print(f"\nDone in {elapsed:.0f}s. Loss: {final_loss}. Saved to {args.output_dir}")
+    print(f"\nDone in {elapsed:.0f}s. Loss: {final_loss}. Saved to {args.output_dir}", flush=True)
 
 
 if __name__ == "__main__":

@@ -30,8 +30,12 @@ DATASETS = {
         "split": "train",
     },
     "math": {
-        "hf_id": "lighteval/MATH",
+        "hf_id": "EleutherAI/hendrycks_math",
         "split": "train",
+        "all_configs": [
+            "algebra", "counting_and_probability", "geometry",
+            "intermediate_algebra", "number_theory", "prealgebra", "precalculus",
+        ],
     },
     "openmathinstruct2": {
         "hf_id": "nvidia/OpenMathInstruct-2",
@@ -59,8 +63,7 @@ DATASETS = {
     },
     "acemath": {
         "hf_id": "nvidia/AceMath-Instruct-Training-Data",
-        "subset": "math_sft",
-        "split": "train",
+        "split": "math_sft",
     },
 }
 
@@ -121,9 +124,18 @@ def normalize_openmathinstruct2(row: dict) -> dict | None:
 
 
 def normalize_openthoughts3(row: dict) -> dict | None:
-    # OpenThoughts format: has 'problem', 'solution', and 'conversations'
+    # OpenThoughts: try 'problem'/'solution' fields first, fall back to conversations
     problem = row.get("problem") or ""
     solution = row.get("solution") or ""
+    if not problem or not solution:
+        # Fall back to conversations with from/value keys
+        for turn in row.get("conversations", []):
+            role = turn.get("role") or turn.get("from", "")
+            content = turn.get("content") or turn.get("value", "")
+            if role in ("user", "human"):
+                problem = content
+            elif role in ("assistant", "gpt"):
+                solution = content
     if not problem or not solution:
         return None
     return {
@@ -134,14 +146,16 @@ def normalize_openthoughts3(row: dict) -> dict | None:
 
 
 def normalize_stratos(row: dict) -> dict | None:
-    # Bespoke-Stratos: conversations format
+    # Bespoke-Stratos: conversations with from/value keys
     conversations = row.get("conversations", [])
     problem = solution = ""
     for turn in conversations:
-        if turn.get("role") == "user":
-            problem = turn.get("content", "")
-        elif turn.get("role") == "assistant":
-            solution = turn.get("content", "")
+        role = turn.get("role") or turn.get("from", "")
+        content = turn.get("content") or turn.get("value", "")
+        if role in ("user", "human"):
+            problem = content
+        elif role in ("assistant", "gpt"):
+            solution = content
     if not problem or not solution:
         return None
     return {
@@ -188,14 +202,18 @@ def normalize_numinamath15(row: dict) -> dict | None:
 
 
 def normalize_acemath(row: dict) -> dict | None:
-    # AceMath uses messages format
+    # AceMath: user message in 'messages', solution in 'answer' field
     messages = row.get("messages", [])
-    problem = solution = ""
+    problem = ""
     for msg in messages:
         if msg.get("role") == "user":
             problem = msg.get("content", "")
-        elif msg.get("role") == "assistant":
-            solution = msg.get("content", "")
+    solution = row.get("answer") or ""
+    # Fall back to assistant message if no 'answer' field
+    if not solution:
+        for msg in messages:
+            if msg.get("role") == "assistant":
+                solution = msg.get("content", "")
     if not problem or not solution:
         return None
     return {
@@ -230,13 +248,54 @@ def main():
     from datasets import load_dataset
 
     config = DATASETS[args.dataset]
-    print(f"Loading {args.dataset} from {config['hf_id']}...")
-    ds = load_dataset(
-        config["hf_id"],
-        name=config.get("subset"),
-        split=config["split"],
-        trust_remote_code=True,
-    )
+    # Use streaming when we only need a subset of a large dataset
+    use_streaming = args.max_samples > 0
+    mode = "streaming" if use_streaming else "full"
+    print(f"Loading {args.dataset} from {config['hf_id']} ({mode})...")
+
+    if config.get("all_configs"):
+        # Load all configs (e.g., MATH has 7 subject areas) and concatenate
+        config_names = config["all_configs"]
+        if use_streaming:
+            from itertools import chain
+            streams = []
+            for cfg_name in config_names:
+                print(f"  Loading config: {cfg_name}")
+                stream = load_dataset(
+                    config["hf_id"], name=cfg_name, split=config["split"],
+                    trust_remote_code=True, streaming=True,
+                )
+                streams.append(stream)
+            ds = chain(*streams)
+        else:
+            from datasets import concatenate_datasets
+            parts = []
+            for cfg_name in config_names:
+                print(f"  Loading config: {cfg_name}")
+                part = load_dataset(config["hf_id"], name=cfg_name, split=config["split"], trust_remote_code=True)
+                parts.append(part)
+            ds = concatenate_datasets(parts)
+            print(f"  Concatenated {len(parts)} configs -> {len(ds)} rows")
+    else:
+        try:
+            ds = load_dataset(
+                config["hf_id"],
+                name=config.get("subset"),
+                split=config["split"],
+                trust_remote_code=True,
+                streaming=use_streaming,
+            )
+        except Exception:
+            # Retry with no verification (fixes split-size mismatches like acemath)
+            print("  Retrying with no verification...")
+            ds = load_dataset(
+                config["hf_id"],
+                name=config.get("subset"),
+                split=config["split"],
+                trust_remote_code=True,
+                streaming=use_streaming,
+                verification_mode="no_checks",
+            )
 
     normalize = NORMALIZERS[args.dataset]
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
