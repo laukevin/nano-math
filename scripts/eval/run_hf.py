@@ -34,11 +34,21 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from scripts.eval.extraction import extract_answer, normalize_answer
 
 
+def log_gpu_stats(prefix: str = ""):
+    """Log GPU memory usage if CUDA is available."""
+    if not torch.cuda.is_available():
+        return
+    allocated = torch.cuda.memory_allocated() / 1024**3
+    reserved = torch.cuda.memory_reserved() / 1024**3
+    total = torch.cuda.get_device_properties(0).total_memory / 1024**3
+    print(f"  {prefix}GPU mem: {allocated:.1f}GB allocated, {reserved:.1f}GB reserved, {total:.1f}GB total ({allocated/total*100:.0f}% used)", flush=True)
+
+
 def load_hf_model(base_model: str, adapter_path: str | None = None):
     """Load HF model with optional LoRA adapter."""
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    print(f"Loading base model: {base_model}")
+    print(f"Loading base model: {base_model}", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -53,11 +63,12 @@ def load_hf_model(base_model: str, adapter_path: str | None = None):
     if adapter_path:
         from peft import PeftModel
 
-        print(f"Loading LoRA adapter: {adapter_path}")
+        print(f"Loading LoRA adapter: {adapter_path}", flush=True)
         model = PeftModel.from_pretrained(model, adapter_path)
 
     model.eval()
     n_params = sum(p.numel() for p in model.parameters())
+    log_gpu_stats("After model load: ")
     return model, tokenizer, n_params
 
 
@@ -113,8 +124,12 @@ def generate_hf_batch(
 ) -> list[str]:
     """Generate completions for multiple prompts in batches."""
     all_outputs = []
+    n_batches = (len(prompts) + batch_size - 1) // batch_size
+    t_start = time.time()
     for i in range(0, len(prompts), batch_size):
+        batch_num = i // batch_size + 1
         batch_prompts = prompts[i : i + batch_size]
+        t_batch = time.time()
         inputs = tokenizer(
             batch_prompts, return_tensors="pt", padding=True, truncation=True,
         ).to(model.device)
@@ -123,6 +138,14 @@ def generate_hf_batch(
             max_new_tokens=max_tokens,
             do_sample=False,
             pad_token_id=tokenizer.pad_token_id,
+        )
+        batch_elapsed = time.time() - t_batch
+        total_elapsed = time.time() - t_start
+        eta = (total_elapsed / batch_num) * (n_batches - batch_num)
+        print(
+            f"  Batch {batch_num}/{n_batches} ({len(batch_prompts)} prompts) "
+            f"done in {batch_elapsed:.1f}s  [elapsed: {total_elapsed:.0f}s, ETA: {eta:.0f}s]",
+            flush=True,
         )
         for j, output in enumerate(outputs):
             prompt_len = inputs["attention_mask"][j].sum().item()
@@ -136,6 +159,9 @@ def generate_hf_batch(
 def load_benchmark(name: str, n: int = 50) -> list[dict]:
     """Load benchmark problems from HuggingFace."""
     from datasets import load_dataset
+
+    print(f"  Loading {name} benchmark...", flush=True)
+    t0 = time.time()
 
     if name == "gsm8k":
         ds = load_dataset("openai/gsm8k", "main", split="test")
@@ -152,6 +178,7 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
                     "source": "gsm8k",
                 }
             )
+        print(f"  Loaded {len(problems)} {name} problems in {time.time()-t0:.1f}s", flush=True)
         return problems
 
     elif name == "svamp":
@@ -168,10 +195,17 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
                     "source": "svamp",
                 }
             )
+        print(f"  Loaded {len(problems)} {name} problems in {time.time()-t0:.1f}s", flush=True)
         return problems
 
     elif name == "math":
-        ds = load_dataset("lighteval/MATH", split="test")
+        from datasets import concatenate_datasets
+        configs = [
+            "algebra", "counting_and_probability", "geometry",
+            "intermediate_algebra", "number_theory", "prealgebra", "precalculus",
+        ]
+        parts = [load_dataset("EleutherAI/hendrycks_math", c, split="test") for c in configs]
+        ds = concatenate_datasets(parts)
         problems = []
         for i, row in enumerate(ds):
             if i >= n:
@@ -186,6 +220,7 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
                     "source": "math",
                 }
             )
+        print(f"  Loaded {len(problems)} {name} problems in {time.time()-t0:.1f}s", flush=True)
         return problems
 
     elif name == "aime_2024":
@@ -202,6 +237,7 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
                     "source": "aime_2024",
                 }
             )
+        print(f"  Loaded {len(problems)} {name} problems in {time.time()-t0:.1f}s", flush=True)
         return problems
 
     elif name == "aime_2025":
@@ -218,6 +254,7 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
                     "source": "aime_2025",
                 }
             )
+        print(f"  Loaded {len(problems)} {name} problems in {time.time()-t0:.1f}s", flush=True)
         return problems
 
     raise ValueError(f"Unknown benchmark: {name}")
@@ -230,13 +267,15 @@ def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_thi
     eval_batch_size=1 (default) runs sequentially — safe for local/MPS.
     On GPU (Modal), pass eval_batch_size=8 or 16 for much faster eval.
     """
+    model.eval()  # Ensure eval mode
     n_correct = 0
     n_extracted = 0
     n_boxed = 0
     results = []
 
-    print(f"\nEvaluating {len(problems)} problems (max_tokens={max_tokens}, format={prompt_format}, batch={eval_batch_size})")
-    print("-" * 70)
+    print(f"\nEvaluating {len(problems)} problems (max_tokens={max_tokens}, format={prompt_format}, batch={eval_batch_size})", flush=True)
+    print("-" * 70, flush=True)
+    log_gpu_stats("Before generation: ")
 
     prompts = [make_eval_prompt(p["problem"], tokenizer, prompt_format) for p in problems]
 
@@ -246,7 +285,8 @@ def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_thi
     else:
         outputs = [generate_hf(model, tokenizer, p, max_tokens=max_tokens) for p in prompts]
     total_elapsed = time.time() - t0
-    print(f"  Generation done in {total_elapsed:.1f}s ({total_elapsed/len(problems):.1f}s/problem)")
+    print(f"  Generation done in {total_elapsed:.1f}s ({total_elapsed/len(problems):.1f}s/problem)", flush=True)
+    log_gpu_stats("After generation: ")
 
     for i, (prob, output) in enumerate(zip(problems, outputs)):
         extracted = extract_answer(output)
@@ -278,7 +318,7 @@ def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_thi
 
     n = len(problems)
     accuracy = n_correct / n if n else 0
-    print(f"\nResults: {n_correct}/{n} correct ({accuracy*100:.1f}%)")
+    print(f"\nResults: {n_correct}/{n} correct ({accuracy*100:.1f}%)", flush=True)
 
     return {
         "n_problems": n,
@@ -301,20 +341,21 @@ def main():
         choices=["chat_think", "few_shot"],
     )
     parser.add_argument("--eval-batch-size", type=int, default=1,
-                        help="Batch size for generation. 1=sequential (local), 8-16=batched (GPU)")
+                        help="Batch size for generation. 1=sequential (local), 16-64=batched (GPU)")
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
 
     model, tokenizer, n_params = load_hf_model(args.base_model, args.adapter)
-    print(f"  Params: {n_params:,}")
-    print(f"  Prompt format: {args.prompt_format}")
+    print(f"  Params: {n_params:,}", flush=True)
+    print(f"  Prompt format: {args.prompt_format}", flush=True)
 
     all_results = {}
-    for bench_name in args.benchmarks.split(","):
+    total_benchmarks = len(args.benchmarks.split(","))
+    for bench_idx, bench_name in enumerate(args.benchmarks.split(","), 1):
         bench_name = bench_name.strip()
-        print(f"\n{'='*70}")
-        print(f"Benchmark: {bench_name}")
-        print(f"{'='*70}")
+        print(f"\n{'='*70}", flush=True)
+        print(f"Benchmark [{bench_idx}/{total_benchmarks}]: {bench_name}", flush=True)
+        print(f"{'='*70}", flush=True)
 
         problems = load_benchmark(bench_name, n=args.n_problems)
         summary = run_eval(model, tokenizer, problems, args.max_tokens, args.prompt_format,
@@ -337,14 +378,14 @@ def main():
         os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
         with open(args.output, "w") as f:
             json.dump(output, f, indent=2, default=str)
-        print(f"\nResults saved to {args.output}")
+        print(f"\nResults saved to {args.output}", flush=True)
 
     # Summary
-    print(f"\n{'='*70}")
-    print("SUMMARY")
-    print(f"{'='*70}")
+    print(f"\n{'='*70}", flush=True)
+    print("SUMMARY", flush=True)
+    print(f"{'='*70}", flush=True)
     for bench, res in all_results.items():
-        print(f"  {bench}: {res['accuracy']*100:.1f}% ({res['n_problems']} problems)")
+        print(f"  {bench}: {res['accuracy']*100:.1f}% ({res['n_problems']} problems)", flush=True)
 
     return output
 

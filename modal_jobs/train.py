@@ -352,6 +352,113 @@ def run_sft_sweep(
 
 
 # ---------------------------------------------------------------------------
+# Eval-only: re-eval an existing checkpoint on all 4 tiers
+# ---------------------------------------------------------------------------
+
+
+@app.function(
+    image=train_image,
+    gpu="A100",
+    timeout=1 * 3600,
+    volumes=VOLUME_MOUNTS,
+    secrets=[s for s in [WANDB_SECRET, HF_SECRET] if s is not None],
+)
+def run_eval_only(
+    experiment_id: str = "sft-gsm8k-full-v1",
+    base_model: str = "Qwen/Qwen3-0.6B-Base",
+    adapter: str = "",
+    prompt_format: str = "chat_think",
+    eval_benchmarks: str = "svamp,gsm8k,math,aime_2025",
+    eval_n_problems: int = 100,
+    eval_max_tokens: int = 1024,
+    eval_batch_size: int = 64,
+    update_registry: bool = True,
+) -> dict:
+    """Run eval on an existing checkpoint (no training).
+
+    Use adapter="" for base model eval, or adapter="/checkpoints/sft-xxx" for LoRA.
+    Results are saved and optionally update the experiment registry.
+    """
+    import json
+    import os
+    import subprocess
+    import sys
+    import time
+
+    os.environ["HF_HOME"] = "/data/hf_cache"
+    project = "/root/math-nano"
+    start_time = time.time()
+
+    eval_output = f"/results/eval_{experiment_id}.json"
+    print(f"[eval] Evaluating {experiment_id} on {eval_benchmarks}...")
+
+    eval_cmd = [
+        "python", "-u", f"{project}/scripts/eval/run_hf.py",
+        f"--base-model={base_model}",
+        f"--benchmarks={eval_benchmarks}",
+        f"--n-problems={eval_n_problems}",
+        f"--max-tokens={eval_max_tokens}",
+        f"--prompt-format={prompt_format}",
+        f"--eval-batch-size={eval_batch_size}",
+        f"--output={eval_output}",
+    ]
+    if adapter:
+        eval_cmd.append(f"--adapter={adapter}")
+
+    eval_result = subprocess.run(
+        eval_cmd, text=True,
+        stdout=sys.stdout, stderr=sys.stderr,
+        env={**os.environ, "PYTHONPATH": project},
+    )
+    if eval_result.returncode != 0:
+        print("STDERR:", eval_result.stderr[-1000:])
+        return {"error": "eval failed", "stderr": eval_result.stderr[-1000:]}
+
+    # Load eval results
+    eval_data = {}
+    if os.path.exists(eval_output):
+        with open(eval_output) as f:
+            eval_data = json.load(f)
+
+    elapsed = time.time() - start_time
+
+    # Build eval summary
+    eval_summary = {}
+    for bench_name, bench_data in eval_data.get("benchmarks", {}).items():
+        eval_summary[f"{bench_name}_greedy"] = bench_data.get("accuracy", 0)
+        eval_summary[f"{bench_name}_extraction"] = bench_data.get("extraction_rate", 0)
+
+    # Optionally update registry
+    if update_registry:
+        import sys
+        sys.path.insert(0, project)
+        from scripts.registry import append_result
+
+        record = {
+            "experiment_id": experiment_id,
+            "base_model": base_model,
+            "method": "eval-only" if not adapter else "sft-lora",
+            "prompt_format": prompt_format,
+            "adapter": adapter or None,
+            "eval": eval_summary,
+            "eval_wall_clock_min": elapsed / 60,
+        }
+        append_result(record, "/results/experiment_registry.jsonl")
+
+    vol_results.commit()
+
+    print(f"\n{'='*70}")
+    print(f"EVAL COMPLETE: {experiment_id}")
+    for k, v in eval_summary.items():
+        if "greedy" in k:
+            print(f"  {k}: {v*100:.1f}%")
+    print(f"  Time: {elapsed/60:.1f} min")
+    print(f"{'='*70}")
+
+    return {"experiment_id": experiment_id, "eval": eval_summary, "wall_clock_min": elapsed / 60}
+
+
+# ---------------------------------------------------------------------------
 # HF / LoRA SFT pipeline (Qwen3-0.6B + LoRA + eval + registry)
 # ---------------------------------------------------------------------------
 
@@ -370,10 +477,12 @@ def run_sft_lora(
     base_model: str = "Qwen/Qwen3-0.6B-Base",
     lr: float = 2e-5,
     epochs: int = 3,
-    batch_size: int = 8,
+    batch_size: int = 32,
+    gradient_accumulation_steps: int = 1,
     max_seq_len: int = 2048,
     lora_rank: int = 16,
     prompt_format: str = "chat_think",
+    packing: bool = False,
     eval_benchmarks: str = "svamp,gsm8k,math,aime_2025",
     eval_n_problems: int = 100,
     eval_max_tokens: int = 1024,
@@ -381,21 +490,49 @@ def run_sft_lora(
     """Run LoRA SFT on a HuggingFace model, eval, and log to registry.
 
     Full pipeline:
-    1. Prepare data (download from HF if needed, normalize to JSONL)
-    2. Run LoRA SFT training
-    3. Run eval on benchmarks
-    4. Log results to experiment registry
+    1. Estimate memory, print GPU plan
+    2. Prepare data (download from HF if needed, normalize to JSONL)
+    3. Run LoRA SFT training (with OOM recovery)
+    4. Run eval on benchmarks
+    5. Log results to experiment registry
     """
     import json
     import os
     import subprocess
+    import sys
     import time
 
     os.environ["HF_HOME"] = "/data/hf_cache"
     project = "/root/math-nano"
+    sys.path.insert(0, project)
     start_time = time.time()
 
-    # --- 1. Prepare data ---
+    # --- 1. GPU memory plan ---
+    from scripts.gpu_config import estimate_training_memory_gb, estimate_eval_memory_gb, recommend_batch_size, GPU_SPECS
+    train_est = estimate_training_memory_gb(
+        batch_size=batch_size, seq_len=max_seq_len, lora_rank=lora_rank, packing=packing,
+    )
+    eval_est = estimate_eval_memory_gb(batch_size=64, seq_len=eval_max_tokens, lora_rank=lora_rank)
+    gpu_mem = GPU_SPECS.get("A100-40GB", 40.0)
+    pack_label = "packing" if packing else "no packing"
+    print(f"\n[gpu] Memory plan for {experiment_id}:", flush=True)
+    print(f"  Training: batch={batch_size}, seq={max_seq_len}, {pack_label} "
+          f"(eff_seq={train_est['effective_seq_len']}) -> {train_est['total_gb']:.1f}GB "
+          f"({train_est['total_gb']/gpu_mem*100:.0f}% of {gpu_mem:.0f}GB)", flush=True)
+    print(f"    Breakdown: logits={train_est['logits_gb']:.1f}GB, "
+          f"activations={train_est['activations_gb']:.1f}GB, "
+          f"fixed={train_est['fixed_gb']:.1f}GB", flush=True)
+    print(f"  Eval: batch=64, seq={eval_max_tokens} -> {eval_est['total_gb']:.1f}GB "
+          f"({eval_est['total_gb']/gpu_mem*100:.0f}% of {gpu_mem:.0f}GB)", flush=True)
+    print(f"  Headroom: {gpu_mem - train_est['total_gb']:.1f}GB training, "
+          f"{gpu_mem - eval_est['total_gb']:.1f}GB eval", flush=True)
+
+    if train_est['total_gb'] > gpu_mem * 0.95:
+        rec = recommend_batch_size(mode="train", seq_len=max_seq_len, lora_rank=lora_rank, packing=packing)
+        print(f"  WARNING: Training estimate ({train_est['total_gb']:.1f}GB) exceeds 95% of GPU! "
+              f"Recommended: batch={rec['recommended_batch_size']}", flush=True)
+
+    # --- 2. Prepare data ---
     data_dir = f"/data/sft/{data_source}"
     data_path = f"{data_dir}/train.jsonl"
 
@@ -416,45 +553,72 @@ def run_sft_lora(
         print(f"[data] Preparing {data_source} dataset...")
         os.makedirs(data_dir, exist_ok=True)
         cmd = [
-            "python", f"{project}/scripts/data/normalize_dataset.py",
+            "python", "-u", f"{project}/scripts/data/normalize_dataset.py",
             f"--dataset={data_source}",
             f"--output={data_path}",
         ]
         if data_size > 0:
             cmd.append(f"--max-samples={data_size}")
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        print(result.stdout[-1000:])
+        result = subprocess.run(cmd, text=True, stdout=sys.stdout, stderr=sys.stderr)
         if result.returncode != 0:
-            print("STDERR:", result.stderr[-500:])
-            return {"error": "data prep failed", "stderr": result.stderr[-500:]}
+            return {"error": "data prep failed"}
         vol_data.commit()
     else:
         print(f"[data] Using cached {data_source} at {data_path} ({line_count} samples)")
 
-    # --- 2. Run SFT ---
+    # --- 3. Run SFT ---
     output_dir = f"/checkpoints/{experiment_id}"
-    print(f"\n[sft] Training {experiment_id}...")
+    print(f"\n[sft] Training {experiment_id}...", flush=True)
     sft_cmd = [
-        "python", f"{project}/scripts/train/sft_lora.py",
+        "python", "-u", f"{project}/scripts/train/sft_lora.py",
         f"--base-model={base_model}",
         f"--data={data_path}",
         f"--output-dir={output_dir}",
         f"--lr={lr}",
         f"--epochs={epochs}",
         f"--batch-size={batch_size}",
+        f"--gradient-accumulation-steps={gradient_accumulation_steps}",
         f"--max-seq-len={max_seq_len}",
         f"--lora-rank={lora_rank}",
         f"--prompt-format={prompt_format}",
     ]
     if data_size > 0:
         sft_cmd.append(f"--data-size={data_size}")
+    if packing:
+        sft_cmd.append("--packing")
 
-    sft_result = subprocess.run(sft_cmd, capture_output=True, text=True)
-    print(sft_result.stdout[-2000:])
+    sft_result = subprocess.run(
+        sft_cmd, text=True, stdout=sys.stdout, stderr=sys.stderr,
+    )
+
+    # Always try to commit checkpoints, even on failure (epoch checkpoints may exist)
+    try:
+        vol_checkpoints.commit()
+    except Exception:
+        pass
+
     if sft_result.returncode != 0:
-        print("STDERR:", sft_result.stderr[-1000:])
-        return {"error": "sft failed", "stderr": sft_result.stderr[-1000:]}
-    vol_checkpoints.commit()
+        print(f"\n[error] SFT failed with exit code {sft_result.returncode}", flush=True)
+        # Check if we got partial checkpoints (useful for epoch-2 recovery)
+        partial_ckpts = []
+        if os.path.exists(output_dir):
+            for d in sorted(os.listdir(output_dir)):
+                if d.startswith("checkpoint-"):
+                    partial_ckpts.append(d)
+        if partial_ckpts:
+            print(f"  Partial checkpoints saved: {partial_ckpts}", flush=True)
+            print(f"  Can eval from: /checkpoints/{experiment_id}/{partial_ckpts[-1]}", flush=True)
+        return {
+            "error": "sft failed",
+            "exit_code": sft_result.returncode,
+            "partial_checkpoints": partial_ckpts,
+            "experiment_id": experiment_id,
+        }
+
+    # Check that adapter was actually saved (training can "succeed" with 0 samples)
+    adapter_config = os.path.join(output_dir, "adapter_config.json")
+    if not os.path.exists(adapter_config):
+        return {"error": "sft produced no checkpoint (likely 0 training samples)"}
 
     # Load training metadata
     meta_path = os.path.join(output_dir, "training_meta.json")
@@ -463,29 +627,29 @@ def run_sft_lora(
         with open(meta_path) as f:
             training_meta = json.load(f)
 
-    # --- 3. Run eval ---
+    # --- 4. Run eval ---
     eval_output = f"/results/eval_{experiment_id}.json"
-    print(f"\n[eval] Evaluating {experiment_id}...")
+    print(f"\n[eval] Evaluating {experiment_id}...", flush=True)
     eval_cmd = [
-        "python", f"{project}/scripts/eval/run_hf.py",
+        "python", "-u", f"{project}/scripts/eval/run_hf.py",
         f"--base-model={base_model}",
         f"--adapter={output_dir}",
         f"--benchmarks={eval_benchmarks}",
         f"--n-problems={eval_n_problems}",
         f"--max-tokens={eval_max_tokens}",
         f"--prompt-format={prompt_format}",
-        "--eval-batch-size=8",
+        "--eval-batch-size=64",
         f"--output={eval_output}",
     ]
     eval_result = subprocess.run(
-        eval_cmd, capture_output=True, text=True,
+        eval_cmd, text=True, stdout=sys.stdout, stderr=sys.stderr,
         env={**os.environ, "PYTHONPATH": project},
     )
-    print(eval_result.stdout[-2000:])
     if eval_result.returncode != 0:
-        print("STDERR:", eval_result.stderr[-1000:])
+        print(f"\n[error] Eval failed with exit code {eval_result.returncode}", flush=True)
+        print("  Training succeeded but eval crashed. Saving partial results...", flush=True)
 
-    # Load eval results
+    # Load eval results (may be empty if eval crashed)
     eval_data = {}
     if os.path.exists(eval_output):
         with open(eval_output) as f:
@@ -493,7 +657,7 @@ def run_sft_lora(
 
     elapsed = time.time() - start_time
 
-    # --- 4. Log to registry ---
+    # --- 5. Log to registry ---
     # Build eval summary
     eval_summary = {}
     for bench_name, bench_data in eval_data.get("benchmarks", {}).items():
@@ -518,9 +682,6 @@ def run_sft_lora(
         "wall_clock_min": elapsed / 60,
     }
 
-    # Import and use registry
-    import sys
-    sys.path.insert(0, project)
     from scripts.registry import append_result
     append_result(record, "/results/experiment_registry.jsonl")
 
