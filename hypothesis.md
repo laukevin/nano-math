@@ -73,6 +73,40 @@ Updated as results come in. Read alongside `next_steps.md` for full context.
 
 ---
 
+### E2: `sft-mot7k14k-10k-seq4096` — COMPLETE
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 43% | 30% | 27% | 0% |
+
+**Verdict: MoT 7K-14K underperforms stratos.** Only 6218 of 10K samples survived the seq4096 drop filter — the lower end of the bucket (shorter/easier traces). We inadvertently trained on the least-hard slice of MoT. Stratos (7175 samples, more consistent quality) dominates on every metric: +15pp MATH, +3.3pp AIME.
+
+**Revised view of MoT buckets**: the 7K-14K char bucket, after seq4096 filtering, collapses to mostly medium-difficulty traces. The AIME signal (if any) lives in the 14K+ bucket (diff=8, exp=9) which needs seq8192 to keep most traces.
+
+---
+
+## Wave 2 Summary
+
+| Experiment | MATH | AIME | Verdict |
+|-----------|------|------|---------|
+| base-no-sft | 59% | 0% | Baseline |
+| acemath-10k | 66% | 0% | Best MATH, no AIME |
+| dartmath-50k | 46% | 7% | Best AIME overall |
+| E1 stratos seq4096 | 42% | **3.3%** | ✅ R1 works at proper seq_len |
+| E2 MoT 7k-14k | 27% | 0% | ❌ Wrong bucket, too easy |
+| E3 acemath→stratos | 33% | 0% | ❌ Curriculum actively hurts |
+
+**Confirmed findings:**
+- Seq_len fix is real: stratos at 2048 (broken) → 4096 (3.3% AIME)
+- Curriculum on incompatible data is worse than cold start from base
+- MoT 7K-14K is not the right bucket — need 14K+ for hard AIME signal
+- Stratos is the best R1 dataset tested so far
+
+**Dead ends:**
+- acemath→R1 curriculum: makes things worse, don't retry
+- MoT 7K-14K: too easy after seq4096 filtering
+
+---
+
 ## Active Experiments
 
 ### E1: `sft-stratos-seq4096`
