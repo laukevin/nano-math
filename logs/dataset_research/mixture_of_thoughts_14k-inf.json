@@ -1,0 +1,153 @@
+{
+  "dataset": "mixture_of_thoughts",
+  "analyzed_at": "2026-03-21T14:37:54.266082+00:00",
+  "length_filter": {
+    "min_chars": 14000,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 31908,
+        "median": 28497,
+        "stdev": 12750,
+        "p10": 17605,
+        "p25": 25439,
+        "p50": 28497,
+        "p75": 36939,
+        "p90": 51062,
+        "p95": 51062,
+        "p99": 51062
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 2,
+          "pct": 0.4
+        },
+        "28k_plus": {
+          "count": 3,
+          "pct": 0.6
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.6,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 9,
+      "style_label": "r1_exploratory",
+      "verbosity_score": 8,
+      "verbosity_label": "verbose",
+      "step_by_step_score": 6,
+      "proof_style_score": 4,
+      "exploratory_score": 9,
+      "latex_density_score": 9,
+      "difficulty_score": 8,
+      "difficulty_label": "competition",
+      "reasoning_type": "exploratory_cot",
+      "structure_features": [
+        "bold_headers",
+        "latex_heavy",
+        "plain_prose",
+        "backtracking",
+        "scratch_work",
+        "word_problem_setup"
+      ],
+      "content_types": [
+        "algebra",
+        "geometry",
+        "number_theory",
+        "competition_math",
+        "proof_based"
+      ],
+      "answer_format": "think_then_boxed",
+      "think_tag_usage": "stripped",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "The dataset provides high-quality, long-form reasoning traces similar to R1 models, characterized by conversational thinking and rigorous competition-level math problem solving.",
+      "overall_quality_score": 9,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 25682,
+        "median": 25439,
+        "stdev": 10002,
+        "p10": 15181,
+        "p25": 17605,
+        "p50": 25439,
+        "p75": 29064,
+        "p90": 42215,
+        "p95": 47018,
+        "p99": 51062
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 16,
+          "pct": 0.64
+        },
+        "28k_plus": {
+          "count": 9,
+          "pct": 0.36
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.8,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 1.0,
+      "avg_quality": 4.76,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 6,
+        "5": 19
+      },
+      "flag_counts": {},
+      "flagged_samples": []
+    }
+  }
+}

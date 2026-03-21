@@ -1,0 +1,151 @@
+{
+  "dataset": "stratos",
+  "analyzed_at": "2026-03-21T14:37:37.668497+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 18410,
+        "median": 11240,
+        "stdev": 20999,
+        "p10": 4816,
+        "p25": 5504,
+        "p50": 11240,
+        "p75": 15318,
+        "p90": 55172,
+        "p95": 55172,
+        "p99": 55172
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 2,
+          "pct": 0.4
+        },
+        "7k_14k": {
+          "count": 1,
+          "pct": 0.2
+        },
+        "14k_28k": {
+          "count": 1,
+          "pct": 0.2
+        },
+        "28k_plus": {
+          "count": 1,
+          "pct": 0.2
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.6,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 9,
+      "style_label": "r1_exploratory",
+      "verbosity_score": 7,
+      "verbosity_label": "verbose",
+      "step_by_step_score": 6,
+      "proof_style_score": 2,
+      "exploratory_score": 8,
+      "latex_density_score": 8,
+      "difficulty_score": 7,
+      "difficulty_label": "competition",
+      "reasoning_type": "exploratory_cot",
+      "structure_features": [
+        "scratch_work",
+        "word_problem_setup",
+        "latex_heavy",
+        "plain_prose"
+      ],
+      "content_types": [
+        "algebra",
+        "arithmetic",
+        "geometry",
+        "word_problems",
+        "competition_math"
+      ],
+      "answer_format": "think_then_boxed",
+      "think_tag_usage": "always",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "The samples show high-quality, conversational Chain-of-Thought reasoning. The steps are logical and well-explained, moving from problem interpretation to calculation. The difficulty spans from middle school arithmetic to high school competition levels.",
+      "overall_quality_score": 9,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 13227,
+        "median": 9849,
+        "stdev": 12005,
+        "p10": 4118,
+        "p25": 6282,
+        "p50": 9849,
+        "p75": 14711,
+        "p90": 30737,
+        "p95": 38058,
+        "p99": 55172
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 10,
+          "pct": 0.4
+        },
+        "7k_14k": {
+          "count": 8,
+          "pct": 0.32
+        },
+        "14k_28k": {
+          "count": 4,
+          "pct": 0.16
+        },
+        "28k_plus": {
+          "count": 3,
+          "pct": 0.12
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.92,
+      "step_markers_rate": 0.72,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 1.0,
+      "avg_quality": 4.96,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 1,
+        "5": 24
+      },
+      "flag_counts": {},
+      "flagged_samples": []
+    }
+  }
+}

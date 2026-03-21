@@ -1,0 +1,205 @@
+{
+  "dataset": "gsm8k",
+  "analyzed_at": "2026-03-21T14:37:26.425555+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 336,
+        "median": 277,
+        "stdev": 122,
+        "p10": 222,
+        "p25": 252,
+        "p50": 277,
+        "p75": 431,
+        "p90": 499,
+        "p95": 499,
+        "p99": 499
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 5,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.0,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.0,
+      "multiline_reasoning_rate": 0.2
+    },
+    "llm_analysis": {
+      "style_score": 2,
+      "style_label": "structured",
+      "verbosity_score": 2,
+      "verbosity_label": "concise",
+      "step_by_step_score": 3,
+      "proof_style_score": 1,
+      "exploratory_score": 1,
+      "latex_density_score": 2,
+      "difficulty_score": 1,
+      "difficulty_label": "elementary",
+      "reasoning_type": "step_by_step",
+      "structure_features": [
+        "plain_prose",
+        "word_problem_setup"
+      ],
+      "content_types": [
+        "arithmetic",
+        "word_problems"
+      ],
+      "answer_format": "boxed_only",
+      "think_tag_usage": "none",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "High quality elementary word problems with clear, linear reasoning and consistent formatting. Ideal for training basic arithmetic and multi-step reasoning.",
+      "overall_quality_score": 9,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 517,
+        "median": 487,
+        "stdev": 197,
+        "p10": 265,
+        "p25": 420,
+        "p50": 487,
+        "p75": 611,
+        "p90": 799,
+        "p95": 943,
+        "p99": 982
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 25,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.0,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.04,
+      "multiline_reasoning_rate": 0.48
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 0.88,
+      "avg_quality": 4.8,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 5,
+        "5": 20
+      },
+      "flag_counts": {
+        "malformed": 8
+      },
+      "flagged_samples": [
+        {
+          "idx": 8,
+          "is_math": true,
+          "matches_style": true,
+          "quality": 4,
+          "flag": "malformed"
+        },
+        {
+          "idx": 9,
+          "is_math": true,
+          "matches_style": true,
+          "quality": 5,
+          "flag": "malformed"
+        },
+        {
+          "idx": 10,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 4,
+          "flag": "malformed"
+        },
+        {
+          "idx": 11,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 4,
+          "flag": "malformed"
+        },
+        {
+          "idx": 12,
+          "is_math": true,
+          "matches_style": true,
+          "quality": 5,
+          "flag": "malformed"
+        },
+        {
+          "idx": 18,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 4,
+          "flag": "malformed"
+        },
+        {
+          "idx": 21,
+          "is_math": true,
+          "matches_style": true,
+          "quality": 5,
+          "flag": "malformed"
+        },
+        {
+          "idx": 25,
+          "is_math": true,
+          "matches_style": true,
+          "quality": 5,
+          "flag": "malformed"
+        }
+      ]
+    }
+  }
+}

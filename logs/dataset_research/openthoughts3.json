@@ -1,0 +1,150 @@
+{
+  "dataset": "openthoughts3",
+  "analyzed_at": "2026-03-21T14:37:44.993148+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 31236,
+        "median": 31794,
+        "stdev": 10767,
+        "p10": 16077,
+        "p25": 26315,
+        "p50": 31794,
+        "p75": 37928,
+        "p90": 44067,
+        "p95": 44067,
+        "p99": 44067
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 2,
+          "pct": 0.4
+        },
+        "28k_plus": {
+          "count": 3,
+          "pct": 0.6
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 1.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 1.0,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 9,
+      "style_label": "r1_exploratory",
+      "verbosity_score": 8,
+      "verbosity_label": "verbose",
+      "step_by_step_score": 3,
+      "proof_style_score": 2,
+      "exploratory_score": 8,
+      "latex_density_score": 3,
+      "difficulty_score": 6,
+      "difficulty_label": "competition",
+      "reasoning_type": "exploratory_cot",
+      "structure_features": [
+        "plain_prose",
+        "backtracking",
+        "self_correction",
+        "scratch_work"
+      ],
+      "content_types": [
+        "number_theory",
+        "combinatorics",
+        "word_problems",
+        "competition_math"
+      ],
+      "answer_format": "think_then_boxed",
+      "think_tag_usage": "always",
+      "is_math_dataset": true,
+      "coding_contamination": "heavy",
+      "quality_notes": "The dataset features high-quality exploratory reasoning for complex algorithmic problems. However, the final boxed answers seem to be placeholders or nonsense integers (e.g., \\boxed{000}, \\boxed{4.}) that do not correspond to the problem requirements.",
+      "overall_quality_score": 7,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 34085,
+        "median": 29437,
+        "stdev": 23350,
+        "p10": 9765,
+        "p25": 16077,
+        "p50": 29437,
+        "p75": 44067,
+        "p90": 62322,
+        "p95": 75778,
+        "p99": 99473
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 1,
+          "pct": 0.04
+        },
+        "7k_14k": {
+          "count": 4,
+          "pct": 0.16
+        },
+        "14k_28k": {
+          "count": 7,
+          "pct": 0.28
+        },
+        "28k_plus": {
+          "count": 13,
+          "pct": 0.52
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 1.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 1.0,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 1.0,
+      "avg_quality": 4,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 25,
+        "5": 0
+      },
+      "flag_counts": {},
+      "flagged_samples": []
+    }
+  }
+}

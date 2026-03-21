@@ -1,0 +1,152 @@
+{
+  "dataset": "mixture_of_thoughts",
+  "analyzed_at": "2026-03-21T14:37:41.321783+00:00",
+  "length_filter": {
+    "min_chars": 7000,
+    "max_chars": 14000
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 9486,
+        "median": 9358,
+        "stdev": 1803,
+        "p10": 7840,
+        "p25": 8062,
+        "p50": 9358,
+        "p75": 9833,
+        "p90": 12338,
+        "p95": 12338,
+        "p99": 12338
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 5,
+          "pct": 1.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.4,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 9,
+      "style_label": "r1_exploratory",
+      "verbosity_score": 7,
+      "verbosity_label": "verbose",
+      "step_by_step_score": 4,
+      "proof_style_score": 3,
+      "exploratory_score": 8,
+      "latex_density_score": 8,
+      "difficulty_score": 7,
+      "difficulty_label": "competition",
+      "reasoning_type": "exploratory_cot",
+      "structure_features": [
+        "latex_heavy",
+        "plain_prose",
+        "scratch_work",
+        "word_problem_setup"
+      ],
+      "content_types": [
+        "algebra",
+        "arithmetic",
+        "calculus",
+        "number_theory",
+        "word_problems",
+        "competition_math"
+      ],
+      "answer_format": "think_then_boxed",
+      "think_tag_usage": "none",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "The dataset provides high-quality, conversational chain-of-thought reasoning for a variety of math problems. It effectively models the thinking process of a human solving competition-level math, ending with clear boxed answers.",
+      "overall_quality_score": 9,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 9785,
+        "median": 9358,
+        "stdev": 1699,
+        "p10": 7956,
+        "p25": 8634,
+        "p50": 9358,
+        "p75": 10669,
+        "p90": 12338,
+        "p95": 13597,
+        "p99": 13867
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 25,
+          "pct": 1.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.52,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 1.0,
+      "avg_quality": 5,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 25
+      },
+      "flag_counts": {},
+      "flagged_samples": []
+    }
+  }
+}

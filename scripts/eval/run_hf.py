@@ -52,6 +52,7 @@ def load_hf_model(base_model: str, adapter_path: str | None = None):
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
 
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
@@ -104,6 +105,20 @@ def make_eval_prompt(problem: str, tokenizer=None, prompt_format: str = "chat_th
     return FEW_SHOT_PROMPT + problem + "\nA:"
 
 
+def _eos_token_ids(tokenizer) -> list[int]:
+    """Return all token IDs that should stop generation.
+
+    Qwen3 chat template ends turns with <|im_end|> (151645), but
+    tokenizer.eos_token_id is <|endoftext|> (151643). Without both,
+    generation never stops after the assistant turn.
+    """
+    ids = {tokenizer.eos_token_id}
+    im_end = tokenizer.convert_tokens_to_ids("<|im_end|>")
+    if im_end != tokenizer.unk_token_id:
+        ids.add(im_end)
+    return list(ids)
+
+
 @torch.no_grad()
 def generate_hf(model, tokenizer, prompt: str, max_tokens: int = 256) -> str:
     """Generate completion with HF model (greedy), single prompt."""
@@ -112,6 +127,7 @@ def generate_hf(model, tokenizer, prompt: str, max_tokens: int = 256) -> str:
         **inputs,
         max_new_tokens=max_tokens,
         do_sample=False,
+        eos_token_id=_eos_token_ids(tokenizer),
         pad_token_id=tokenizer.pad_token_id,
     )
     generated = outputs[0][inputs["input_ids"].shape[-1] :]
@@ -137,6 +153,7 @@ def generate_hf_batch(
             **inputs,
             max_new_tokens=max_tokens,
             do_sample=False,
+            eos_token_id=_eos_token_ids(tokenizer),
             pad_token_id=tokenizer.pad_token_id,
         )
         batch_elapsed = time.time() - t_batch

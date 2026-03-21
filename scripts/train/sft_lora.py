@@ -15,11 +15,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import time
+from typing import Iterator
 
 import torch
 from datasets import Dataset
 from peft import LoraConfig, TaskType, get_peft_model
+from torch.utils.data import DataLoader, Sampler
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -119,16 +122,29 @@ def load_data(path: str, max_samples: int = -1) -> list[dict]:
 
 
 
+def _last_boxed_start(text: str) -> int | None:
+    """Return start index of the last \\boxed{ in text."""
+    idx = text.rfind(r"\boxed{")
+    return idx if idx >= 0 else None
+
+
 def tokenize_chat_think(
     sample: dict, tokenizer, max_seq_len: int
 ) -> dict | None:
     """Tokenize using Qwen3 chat template with thinking mode.
 
-    Format: user asks problem -> assistant produces <think>reasoning</think>\\boxed{answer}
-    Loss is only on the assistant's response (after the generation prompt).
+    Token sequence:
+      prefix (masked):  <|im_start|>user\\n[problem]<|im_end|>\\n<|im_start|>assistant\\n
+      rest   (loss):    <think>\\n[reasoning]\\n</think>\\n\\boxed{answer}<|im_end|>
 
-    Note: apply_chat_template(tokenize=True) returns a BatchEncoding dict,
-    so we access .input_ids to get the token list.
+    Key insight: apply_chat_template(enable_thinking=True, add_generation_prompt=True)
+    ends with assistant\\n — NO <think> token. So <think> is the model's first generated
+    token and must be in the loss. At eval time the generation prompt is identical, so
+    the model learns to emit <think> first, then reason, then </think>, then answer.
+
+    The old approach passed the full conversation through apply_chat_template which always
+    produced empty <think>\\n\\n</think>\\n\\n{solution} regardless of enable_thinking,
+    training the model to skip thinking and output the solution outside the think block.
     """
     problem = (
         "Solve the following math problem step by step. "
@@ -136,33 +152,45 @@ def tokenize_chat_think(
     )
     solution = sample["solution"]
 
-    msgs_full = [
-        {"role": "user", "content": problem},
-        {"role": "assistant", "content": solution},
-    ]
+    # Split solution: reasoning goes inside <think>, final \boxed{} goes after </think>.
+    boxed_start = _last_boxed_start(solution)
+    if boxed_start is not None:
+        reasoning = solution[:boxed_start].rstrip()
+        final_answer = solution[boxed_start:]
+        rest_text = f"{reasoning}\n</think>\n{final_answer}"
+    else:
+        # No boxed answer — put everything in think block as fallback
+        rest_text = f"{solution}\n</think>"
+
+    # Prefix: user message + generation prompt (ends with assistant\n, no <think>)
+    # enable_thinking=True intentionally gives NO <think> prefix — the model learns
+    # to generate <think> as its first output token, matching eval behaviour.
     msgs_prefix = [{"role": "user", "content": problem}]
-
-    # Full conversation (thinking=True wraps solution in empty <think></think>)
-    full_enc = tokenizer.apply_chat_template(
-        msgs_full, tokenize=True, return_dict=True, enable_thinking=True
-    )
-    full_ids = full_enc["input_ids"]
-
-    # Prefix = user message + generation prompt (assistant\n)
     prefix_enc = tokenizer.apply_chat_template(
         msgs_prefix, tokenize=True, return_dict=True,
         add_generation_prompt=True, enable_thinking=True,
     )
-    prefix_ids = prefix_enc["input_ids"]
+    prefix_ids = list(prefix_enc["input_ids"])
+
+    # Rest: <think>\n + reasoning + </think>\n + answer + end-of-turn token.
+    # <think> is the first generated token (loss computed on it), matching what the
+    # model produces at eval time (generation prompt ends with assistant\n only).
+    think_id = tokenizer.convert_tokens_to_ids("<think>")
+    newline_ids = tokenizer.encode("\n", add_special_tokens=False)
+    im_end_id = tokenizer.convert_tokens_to_ids("<|im_end|>")
+    rest_ids = (
+        [think_id] + newline_ids
+        + tokenizer.encode(rest_text, add_special_tokens=False)
+        + [im_end_id]
+    )
+
+    full_ids = prefix_ids + rest_ids
     prefix_len = len(prefix_ids)
 
-    # Truncate
     if len(full_ids) > max_seq_len:
-        full_ids = full_ids[:max_seq_len]
+        return None
 
-    prefix_len = min(prefix_len, len(full_ids))
-    labels = [-100] * prefix_len + list(full_ids[prefix_len:])
-    full_ids = list(full_ids)
+    labels = [-100] * prefix_len + rest_ids
 
     n_loss_tokens = sum(1 for l in labels if l != -100)
     if n_loss_tokens < 5:
@@ -187,7 +215,7 @@ def tokenize_few_shot(
     prefix_len = len(prefix_ids)
 
     if len(full_ids) > max_seq_len:
-        full_ids = full_ids[:max_seq_len]
+        return None
 
     prefix_len = min(prefix_len, len(full_ids))
     labels = [-100] * prefix_len + full_ids[prefix_len:]
@@ -246,6 +274,86 @@ def pack_sequences(
     return packed
 
 
+class TokenBudgetBatchSampler(Sampler):
+    """Batch by token budget: large batches for short seqs, small batches for long seqs.
+
+    Sorts the dataset by sequence length, then greedily fills batches until
+    adding another sample would exceed max_tokens (counting padding to batch max).
+    Batches are shuffled each epoch so the model sees varied difficulty ordering.
+    """
+
+    def __init__(self, lengths: list[int], max_tokens: int, shuffle: bool = True, seed: int = 42):
+        self.lengths = lengths
+        self.max_tokens = max_tokens
+        self.shuffle = shuffle
+        self.seed = seed
+        self.epoch = 0
+        self._batches = self._build_batches()
+
+    def _build_batches(self) -> list[list[int]]:
+        # Sort indices by length (shortest first)
+        indices = sorted(range(len(self.lengths)), key=lambda i: self.lengths[i])
+        batches: list[list[int]] = []
+        current: list[int] = []
+        current_max = 0
+        for idx in indices:
+            seq_len = self.lengths[idx]
+            new_max = max(current_max, seq_len)
+            # Total tokens in batch if we add this sample = (n+1) * new_max (due to padding)
+            if current and (len(current) + 1) * new_max > self.max_tokens:
+                batches.append(current)
+                current = [idx]
+                current_max = seq_len
+            else:
+                current.append(idx)
+                current_max = new_max
+        if current:
+            batches.append(current)
+        return batches
+
+    def set_epoch(self, epoch: int) -> None:
+        self.epoch = epoch
+
+    def __iter__(self) -> Iterator[list[int]]:
+        batches = list(self._batches)
+        if self.shuffle:
+            rng = random.Random(self.seed + self.epoch)
+            rng.shuffle(batches)
+        yield from batches
+
+    def __len__(self) -> int:
+        return len(self._batches)
+
+
+class TokenBudgetTrainer(Trainer):
+    """Trainer that uses TokenBudgetBatchSampler instead of fixed batch size."""
+
+    def __init__(self, *args, max_tokens_per_batch: int, seq_lengths: list[int], **kwargs):
+        super().__init__(*args, **kwargs)
+        self._max_tokens = max_tokens_per_batch
+        self._seq_lengths = seq_lengths
+
+    def get_train_dataloader(self) -> DataLoader:
+        dataset = self.train_dataset
+        data_collator = self.data_collator
+
+        sampler = TokenBudgetBatchSampler(
+            lengths=self._seq_lengths,
+            max_tokens=self._max_tokens,
+            shuffle=True,
+            seed=self.args.seed,
+        )
+        sampler.set_epoch(int(self.state.epoch) if self.state.epoch else 0)
+
+        return DataLoader(
+            dataset,
+            batch_sampler=sampler,
+            collate_fn=data_collator,
+            num_workers=self.args.dataloader_num_workers,
+            pin_memory=self.args.dataloader_pin_memory,
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(description="LoRA SFT training")
     parser.add_argument("--base-model", type=str, default="Qwen/Qwen3-0.6B-Base")
@@ -260,6 +368,12 @@ def main():
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument(
+        "--init-adapter", type=str, default=None,
+        help="Path to an existing LoRA adapter to continue training from. "
+             "Use for curriculum: phase1 trains short traces, phase2 loads phase1 adapter "
+             "and continues on longer traces.",
+    )
+    parser.add_argument(
         "--prompt-format", type=str, default="chat_think",
         choices=["chat_think", "few_shot"],
         help="Prompt format: chat_think (Qwen3 thinking mode) or few_shot (plain text Q&A)",
@@ -267,6 +381,17 @@ def main():
     parser.add_argument(
         "--packing", action="store_true", default=False,
         help="Pack multiple samples into max_seq_len windows to reduce padding waste",
+    )
+    parser.add_argument(
+        "--max-tokens-per-batch", type=int, default=-1,
+        help="Token-budget batching: fit as many samples as possible up to this many tokens. "
+             "Overrides --batch-size. Shorter seqs get larger batches, longer seqs get smaller. "
+             "Recommended: 8192 for acemath-scale data on A100.",
+    )
+    parser.add_argument(
+        "--save-every", type=int, default=0,
+        help="Save a checkpoint every N steps (0 = epoch-only). "
+             "Keeps last 2 checkpoints. Use for crash recovery on long runs.",
     )
     args = parser.parse_args()
 
@@ -285,18 +410,23 @@ def main():
     )
     log_gpu_stats("After model load: ")
 
-    # LoRA
-    lora_config = LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        r=args.lora_rank,
-        lora_alpha=args.lora_alpha,
-        lora_dropout=0.05,
-        target_modules=[
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
-        ],
-    )
-    model = get_peft_model(model, lora_config)
+    # LoRA — either fresh or continued from an existing adapter
+    if args.init_adapter:
+        from peft import PeftModel
+        print(f"Loading existing adapter from {args.init_adapter} (curriculum phase 2+)", flush=True)
+        model = PeftModel.from_pretrained(model, args.init_adapter, is_trainable=True)
+    else:
+        lora_config = LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            r=args.lora_rank,
+            lora_alpha=args.lora_alpha,
+            lora_dropout=0.05,
+            target_modules=[
+                "q_proj", "k_proj", "v_proj", "o_proj",
+                "gate_proj", "up_proj", "down_proj",
+            ],
+        )
+        model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
 
     # Data
@@ -327,7 +457,8 @@ def main():
         max_len = max(seq_lengths)
         min_len = min(seq_lengths)
         print(f"  Tokenized: {len(tokenized)}, skipped: {skipped}", flush=True)
-        print(f"  Seq lengths: avg={avg_len:.0f}, min={min_len}, max={max_len}", flush=True)
+        p90_len = sorted(seq_lengths)[int(len(seq_lengths) * 0.9)]
+        print(f"  Seq lengths: avg={avg_len:.0f}, min={min_len}, p90={p90_len}, max={max_len}", flush=True)
     else:
         print(f"  Tokenized: {len(tokenized)}, skipped: {skipped}", flush=True)
 
@@ -346,42 +477,70 @@ def main():
               f"(ratio: {ratio:.1f}x, utilization: {total_non_pad / total_orig_tokens * 100:.0f}%)", flush=True)
 
     dataset = Dataset.from_list(tokenized)
+    use_token_budget = args.max_tokens_per_batch > 0
 
-    # Compute total steps for logging
-    steps_per_epoch = len(dataset) // (args.batch_size * args.gradient_accumulation_steps)
+    if use_token_budget:
+        # Count approx steps: build the sampler to find out
+        _preview_sampler = TokenBudgetBatchSampler(seq_lengths, args.max_tokens_per_batch, shuffle=False)
+        steps_per_epoch = len(_preview_sampler)
+        batching_desc = f"token-budget={args.max_tokens_per_batch} (~{steps_per_epoch} steps/epoch)"
+    else:
+        steps_per_epoch = len(dataset) // (args.batch_size * args.gradient_accumulation_steps)
+        batching_desc = f"batch={args.batch_size} ({steps_per_epoch} steps/epoch)"
     total_steps = steps_per_epoch * args.epochs
     print(f"\n  Dataset: {len(dataset)} sequences", flush=True)
-    print(f"  Steps/epoch: {steps_per_epoch}, total steps: {total_steps}", flush=True)
+    print(f"  Batching: {batching_desc}, total steps: {total_steps}", flush=True)
 
     # Training
     os.makedirs(args.output_dir, exist_ok=True)
+    if args.save_every > 0:
+        save_kwargs = dict(
+            save_strategy="steps",
+            save_steps=args.save_every,
+            save_total_limit=2,
+        )
+    else:
+        save_kwargs = dict(
+            save_strategy="epoch",
+        )
+
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         num_train_epochs=args.epochs,
-        per_device_train_batch_size=args.batch_size,
+        per_device_train_batch_size=1 if use_token_budget else args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         learning_rate=args.lr,
         lr_scheduler_type="cosine",
         warmup_ratio=0.03,
         weight_decay=0.01,
         logging_steps=10,
-        save_strategy="epoch",
         bf16=True,
         gradient_checkpointing=True,
         report_to="none",
         dataloader_pin_memory=False,
         remove_unused_columns=False,
+        **save_kwargs,
     )
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset,
-        data_collator=DataCollatorForSeq2Seq(
-            tokenizer, padding=True, pad_to_multiple_of=8
-        ),
-        callbacks=[ProgressCallback(log_every=10)],
-    )
+    collator = DataCollatorForSeq2Seq(tokenizer, padding=True, pad_to_multiple_of=8)
+    if use_token_budget:
+        trainer = TokenBudgetTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=dataset,
+            data_collator=collator,
+            callbacks=[ProgressCallback(log_every=10)],
+            max_tokens_per_batch=args.max_tokens_per_batch,
+            seq_lengths=seq_lengths,
+        )
+    else:
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=dataset,
+            data_collator=collator,
+            callbacks=[ProgressCallback(log_every=10)],
+        )
 
     print(f"\nTraining: {args.epochs} epochs, batch={args.batch_size}, "
           f"grad_accum={args.gradient_accumulation_steps}, lr={args.lr}", flush=True)

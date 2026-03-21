@@ -1,0 +1,153 @@
+{
+  "dataset": "numinamath15",
+  "analyzed_at": "2026-03-21T14:38:04.256548+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 1710,
+        "median": 1779,
+        "stdev": 493,
+        "p10": 1185,
+        "p25": 1223,
+        "p50": 1779,
+        "p75": 2117,
+        "p90": 2246,
+        "p95": 2246,
+        "p99": 2246
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 5,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.2,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.2,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 2,
+      "style_label": "structured",
+      "verbosity_score": 6,
+      "verbosity_label": "moderate",
+      "step_by_step_score": 3,
+      "proof_style_score": 9,
+      "exploratory_score": 2,
+      "latex_density_score": 9,
+      "difficulty_score": 9,
+      "difficulty_label": "olympiad",
+      "reasoning_type": "proof_style",
+      "structure_features": [
+        "latex_heavy",
+        "plain_prose",
+        "formal_proof",
+        "bold_headers"
+      ],
+      "content_types": [
+        "algebra",
+        "geometry",
+        "number_theory",
+        "calculus",
+        "combinatorics",
+        "competition_math",
+        "proof_based"
+      ],
+      "answer_format": "boxed_only",
+      "think_tag_usage": "none",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "The dataset contains high-level competition math problems, likely from international and national math olympiads. Solutions are formal proofs with rigorous logic. There is an occasional mismatch where 'Prove' problems have a single boxed value, which might be a dataset artifact or representative of a 'Find then Prove' structure.",
+      "overall_quality_score": 9,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 1707,
+        "median": 1569,
+        "stdev": 695,
+        "p10": 881,
+        "p25": 1181,
+        "p50": 1569,
+        "p75": 2154,
+        "p90": 2505,
+        "p95": 3259,
+        "p99": 3309
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 23,
+          "pct": 0.92
+        },
+        "3k_7k": {
+          "count": 2,
+          "pct": 0.08
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.24,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.08,
+      "multiline_reasoning_rate": 1.0
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 1.0,
+      "avg_quality": 3.8,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 5,
+        "4": 20,
+        "5": 0
+      },
+      "flag_counts": {},
+      "flagged_samples": []
+    }
+  }
+}

@@ -65,6 +65,11 @@ DATASETS = {
         "hf_id": "nvidia/AceMath-Instruct-Training-Data",
         "split": "math_sft",
     },
+    "mixture_of_thoughts": {
+        "hf_id": "open-r1/Mixture-of-Thoughts",
+        "subset": "math",
+        "split": "train",
+    },
 }
 
 
@@ -201,6 +206,26 @@ def normalize_numinamath15(row: dict) -> dict | None:
     }
 
 
+def normalize_mixture_of_thoughts(row: dict) -> dict | None:
+    # Messages format: user=problem, assistant=solution
+    # Solution format: <think>[reasoning]</think>\n[final answer with \boxed{}]
+    # Strip <think> tags so tokenize_chat_think can re-wrap correctly.
+    problem = solution = ""
+    for m in row.get("messages", []):
+        if m.get("role") == "user":
+            problem = m.get("content", "")
+        elif m.get("role") == "assistant":
+            solution = m.get("content", "")
+    if not problem or not solution:
+        return None
+    think_match = re.search(r"<think>(.*?)</think>(.*)", solution, re.DOTALL)
+    if think_match:
+        reasoning = think_match.group(1).strip()
+        after_think = think_match.group(2).strip()
+        solution = reasoning + ("\n\n" + after_think if after_think else "")
+    return {"problem": problem, "solution": solution, "source": "mixture_of_thoughts"}
+
+
 def normalize_acemath(row: dict) -> dict | None:
     # AceMath: user message in 'messages', solution in 'answer' field
     messages = row.get("messages", [])
@@ -235,6 +260,7 @@ NORMALIZERS = {
     "mathinstruct": normalize_mathinstruct,
     "numinamath15": normalize_numinamath15,
     "acemath": normalize_acemath,
+    "mixture_of_thoughts": normalize_mixture_of_thoughts,
 }
 
 
@@ -243,6 +269,16 @@ def main():
     parser.add_argument("--dataset", required=True, choices=sorted(DATASETS.keys()))
     parser.add_argument("--output", required=True, help="Output JSONL path")
     parser.add_argument("--max-samples", type=int, default=-1)
+    parser.add_argument(
+        "--max-chars", type=int, default=-1,
+        help="Drop samples where len(problem)+len(solution) exceeds this. "
+             "Rule of thumb: max_seq_len * 3.5 (e.g. 7000 for seq2048, 14000 for seq4096).",
+    )
+    parser.add_argument(
+        "--min-chars", type=int, default=-1,
+        help="Drop samples where len(problem)+len(solution) is below this. "
+             "Use with --max-chars to extract a length bucket (e.g. phase2: min=7000 max=14000).",
+    )
     args = parser.parse_args()
 
     from datasets import load_dataset
@@ -302,6 +338,7 @@ def main():
 
     count = 0
     skipped = 0
+    skipped_long = 0
     with open(args.output, "w") as f:
         for row in ds:
             if 0 < args.max_samples <= count:
@@ -309,12 +346,23 @@ def main():
             try:
                 normalized = normalize(row)
                 if normalized and normalized["problem"].strip() and normalized["solution"].strip():
+                    if args.max_chars > 0 or args.min_chars > 0:
+                        total_chars = len(normalized["problem"]) + len(normalized["solution"])
+                        if args.max_chars > 0 and total_chars > args.max_chars:
+                            skipped_long += 1
+                            continue
+                        if args.min_chars > 0 and total_chars < args.min_chars:
+                            skipped_long += 1
+                            continue
                     f.write(json.dumps(normalized) + "\n")
                     count += 1
                 else:
                     skipped += 1
             except Exception:
                 skipped += 1
+
+    if skipped_long:
+        print(f"  Dropped {skipped_long} samples exceeding --max-chars {args.max_chars}")
 
     print(f"Saved {count} samples to {args.output} ({skipped} skipped)")
 

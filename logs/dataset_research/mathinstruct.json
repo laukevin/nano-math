@@ -1,0 +1,245 @@
+{
+  "dataset": "mathinstruct",
+  "analyzed_at": "2026-03-21T14:38:18.886542+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 426,
+        "median": 363,
+        "stdev": 153,
+        "p10": 297,
+        "p25": 332,
+        "p50": 363,
+        "p75": 461,
+        "p90": 678,
+        "p95": 678,
+        "p99": 678
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 5,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.4,
+      "bold_headers_rate": 0.4,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.0,
+      "multiline_reasoning_rate": 0.4
+    },
+    "llm_analysis": {
+      "style_score": 4,
+      "style_label": "semi-structured",
+      "verbosity_score": 3,
+      "verbosity_label": "concise",
+      "step_by_step_score": 3,
+      "proof_style_score": 2,
+      "exploratory_score": 2,
+      "latex_density_score": 4,
+      "difficulty_score": 3,
+      "difficulty_label": "middle_school",
+      "reasoning_type": "mixed",
+      "structure_features": [
+        "word_problem_setup",
+        "plain_prose"
+      ],
+      "content_types": [
+        "algebra",
+        "arithmetic",
+        "geometry",
+        "combinatorics",
+        "word_problems"
+      ],
+      "answer_format": "think_then_boxed",
+      "think_tag_usage": "none",
+      "is_math_dataset": true,
+      "coding_contamination": "some",
+      "quality_notes": "The dataset contains severe inconsistencies where the final boxed answer does not match the preceding calculations or Python logic (e.g., Sample 5 boxes the input '500' instead of the calculated distance).",
+      "overall_quality_score": 4,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 538,
+        "median": 461,
+        "stdev": 217,
+        "p10": 332,
+        "p25": 363,
+        "p50": 461,
+        "p75": 678,
+        "p90": 854,
+        "p95": 855,
+        "p99": 1138
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 25,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 0.96,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.44,
+      "bold_headers_rate": 0.2,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.08,
+      "multiline_reasoning_rate": 0.72
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 0.96,
+      "matches_style_rate": 0.36,
+      "avg_quality": 3.08,
+      "quality_distribution": {
+        "1": 0,
+        "2": 11,
+        "3": 2,
+        "4": 11,
+        "5": 1
+      },
+      "flag_counts": {
+        "coding": 10,
+        "malformed": 2,
+        "off_topic": 1
+      },
+      "flagged_samples": [
+        {
+          "idx": 3,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 5,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 7,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 8,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 10,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 11,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 15,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 19,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 4,
+          "flag": "malformed"
+        },
+        {
+          "idx": 20,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 22,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "coding"
+        },
+        {
+          "idx": 23,
+          "is_math": false,
+          "matches_style": false,
+          "quality": 2,
+          "flag": "off_topic"
+        },
+        {
+          "idx": 24,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 3,
+          "flag": "coding"
+        },
+        {
+          "idx": 25,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 5,
+          "flag": "malformed"
+        }
+      ]
+    }
+  }
+}

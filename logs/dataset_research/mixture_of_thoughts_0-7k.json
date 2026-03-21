@@ -1,0 +1,153 @@
+{
+  "dataset": "mixture_of_thoughts",
+  "analyzed_at": "2026-03-21T14:37:40.270510+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": 7000
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 5586,
+        "median": 6299,
+        "stdev": 1312,
+        "p10": 4135,
+        "p25": 4195,
+        "p50": 6299,
+        "p75": 6471,
+        "p90": 6832,
+        "p95": 6832,
+        "p99": 6832
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 5,
+          "pct": 1.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 9,
+      "style_label": "r1_exploratory",
+      "verbosity_score": 8,
+      "verbosity_label": "verbose",
+      "step_by_step_score": 5,
+      "proof_style_score": 3,
+      "exploratory_score": 9,
+      "latex_density_score": 8,
+      "difficulty_score": 6,
+      "difficulty_label": "mixed",
+      "reasoning_type": "exploratory_cot",
+      "structure_features": [
+        "bold_headers",
+        "latex_heavy",
+        "plain_prose",
+        "scratch_work",
+        "word_problem_setup"
+      ],
+      "content_types": [
+        "algebra",
+        "arithmetic",
+        "geometry",
+        "number_theory",
+        "word_problems",
+        "competition_math"
+      ],
+      "answer_format": "think_then_boxed",
+      "think_tag_usage": "stripped",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "The dataset contains high-quality internal monologue reasoning ('thoughts') before arriving at the final answer. The explanations are thorough, including verification steps and alternative reasoning paths.",
+      "overall_quality_score": 9,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 5317,
+        "median": 5303,
+        "stdev": 1008,
+        "p10": 4055,
+        "p25": 4350,
+        "p50": 5303,
+        "p75": 6123,
+        "p90": 6515,
+        "p95": 6555,
+        "p99": 6832
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 25,
+          "pct": 1.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.36,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 1.0,
+      "avg_quality": 4.92,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 2,
+        "5": 23
+      },
+      "flag_counts": {},
+      "flagged_samples": []
+    }
+  }
+}

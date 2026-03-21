@@ -8,6 +8,8 @@ results/compiled/
 results/plots/
 results/reports/
 .env
+logs/*.json
+logs/eval_*.json
 __pycache__/
 .venv/
 *.pt

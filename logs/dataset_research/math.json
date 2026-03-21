@@ -1,0 +1,165 @@
+{
+  "dataset": "math",
+  "analyzed_at": "2026-03-21T14:37:36.057023+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 669,
+        "median": 635,
+        "stdev": 415,
+        "p10": 199,
+        "p25": 384,
+        "p50": 635,
+        "p75": 866,
+        "p90": 1259,
+        "p95": 1259,
+        "p99": 1259
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 5,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.0,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.0,
+      "multiline_reasoning_rate": 0.0
+    },
+    "llm_analysis": {
+      "style_score": 3,
+      "style_label": "semi-structured",
+      "verbosity_score": 4,
+      "verbosity_label": "moderate",
+      "step_by_step_score": 3,
+      "proof_style_score": 2,
+      "exploratory_score": 2,
+      "latex_density_score": 8,
+      "difficulty_score": 5,
+      "difficulty_label": "high_school",
+      "reasoning_type": "step_by_step",
+      "structure_features": [
+        "latex_heavy",
+        "plain_prose",
+        "word_problem_setup"
+      ],
+      "content_types": [
+        "algebra",
+        "arithmetic",
+        "word_problems"
+      ],
+      "answer_format": "boxed_only",
+      "think_tag_usage": "none",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "High-quality pedagogical explanations typical of the MATH dataset. Clear logical flow with standard LaTeX formatting and boxed final answers.",
+      "overall_quality_score": 10,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 573,
+        "median": 434,
+        "stdev": 353,
+        "p10": 198,
+        "p25": 379,
+        "p50": 434,
+        "p75": 759,
+        "p90": 1259,
+        "p95": 1272,
+        "p99": 1327
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 25,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.0,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.0,
+      "multiline_reasoning_rate": 0.2
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 0.92,
+      "avg_quality": 4.76,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 2,
+        "4": 2,
+        "5": 21
+      },
+      "flag_counts": {
+        "malformed": 2
+      },
+      "flagged_samples": [
+        {
+          "idx": 9,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 3,
+          "flag": "malformed"
+        },
+        {
+          "idx": 10,
+          "is_math": true,
+          "matches_style": false,
+          "quality": 3,
+          "flag": "malformed"
+        }
+      ]
+    }
+  }
+}

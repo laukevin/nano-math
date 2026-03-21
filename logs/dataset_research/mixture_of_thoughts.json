@@ -1,0 +1,84 @@
+{
+  "dataset": "mixture_of_thoughts",
+  "analyzed_at": "2026-03-21T14:20:34.100498+00:00",
+  "phase1": {
+    "sample_size": 50,
+    "non_llm_stats": {
+      "n": 50,
+      "length": {
+        "mean": 14329,
+        "median": 10053,
+        "stdev": 10603,
+        "p10": 5403,
+        "p25": 7840,
+        "p50": 10273,
+        "p75": 17605,
+        "p90": 29064,
+        "p95": 36939,
+        "p99": 51062
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "3k_7k": {
+          "count": 11,
+          "pct": 0.22
+        },
+        "7k_14k": {
+          "count": 21,
+          "pct": 0.42
+        },
+        "14k_28k": {
+          "count": 12,
+          "pct": 0.24
+        },
+        "28k_plus": {
+          "count": 6,
+          "pct": 0.12
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 1.0,
+      "step_markers_rate": 0.58,
+      "r1_opener_rate": 1.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 9,
+      "style_label": "r1_exploratory",
+      "verbosity_score": 8,
+      "verbosity_label": "verbose",
+      "structure_features": [
+        "plain_prose",
+        "latex_heavy",
+        "bold_subheaders"
+      ],
+      "reasoning_type": "exploratory_cot",
+      "difficulty": "mixed",
+      "content_types": [
+        "algebra",
+        "geometry",
+        "number_theory",
+        "calculus",
+        "trigonometry",
+        "combinatorics",
+        "word_problems",
+        "functional_equations",
+        "set_theory",
+        "3d_geometry"
+      ],
+      "answer_format": "think_then_boxed",
+      "think_tag_usage": "stripped",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "The dataset consistently employs an R1 exploratory style with detailed, step-by-step reasoning. Solutions are generally clear and comprehensive, though one sample was incomplete.",
+      "overall_quality_score": 8,
+      "model": "gemini-2.5-flash"
+    }
+  },
+  "phase2": null
+}

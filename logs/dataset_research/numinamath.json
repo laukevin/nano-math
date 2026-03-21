@@ -1,0 +1,147 @@
+{
+  "dataset": "numinamath",
+  "analyzed_at": "2026-03-21T14:37:33.792799+00:00",
+  "length_filter": {
+    "min_chars": null,
+    "max_chars": null
+  },
+  "phase1": {
+    "sample_size": 5,
+    "non_llm_stats": {
+      "n": 5,
+      "length": {
+        "mean": 772,
+        "median": 568,
+        "stdev": 555,
+        "p10": 393,
+        "p25": 553,
+        "p50": 568,
+        "p75": 590,
+        "p90": 1755,
+        "p95": 1755,
+        "p99": 1755
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 5,
+          "pct": 1.0
+        },
+        "3k_7k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.0,
+      "step_markers_rate": 0.0,
+      "r1_opener_rate": 0.0,
+      "multiline_reasoning_rate": 1.0
+    },
+    "llm_analysis": {
+      "style_score": 2,
+      "style_label": "structured",
+      "verbosity_score": 3,
+      "verbosity_label": "concise",
+      "step_by_step_score": 5,
+      "proof_style_score": 3,
+      "exploratory_score": 1,
+      "latex_density_score": 8,
+      "difficulty_score": 5,
+      "difficulty_label": "high_school",
+      "reasoning_type": "step_by_step",
+      "structure_features": [
+        "latex_heavy",
+        "word_problem_setup",
+        "numbered_steps"
+      ],
+      "content_types": [
+        "algebra",
+        "word_problems"
+      ],
+      "answer_format": "boxed_only",
+      "think_tag_usage": "none",
+      "is_math_dataset": true,
+      "coding_contamination": "none",
+      "quality_notes": "The solutions are high-quality, providing clear and direct algebraic derivations. The use of LaTeX is consistent and correctly applied for both inline and block equations.",
+      "overall_quality_score": 9,
+      "model": "gemini-3-flash-preview"
+    }
+  },
+  "phase2": {
+    "sample_size": 25,
+    "non_llm_stats": {
+      "n": 25,
+      "length": {
+        "mean": 1441,
+        "median": 1126,
+        "stdev": 907,
+        "p10": 568,
+        "p25": 800,
+        "p50": 1126,
+        "p75": 1863,
+        "p90": 2915,
+        "p95": 3541,
+        "p99": 3550
+      },
+      "length_buckets": {
+        "0_3k": {
+          "count": 23,
+          "pct": 0.92
+        },
+        "3k_7k": {
+          "count": 2,
+          "pct": 0.08
+        },
+        "7k_14k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.0,
+      "bold_headers_rate": 0.24,
+      "step_markers_rate": 0.2,
+      "r1_opener_rate": 0.08,
+      "multiline_reasoning_rate": 1.0
+    },
+    "consistency_check": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "n_checked": 25,
+      "is_math_rate": 1.0,
+      "matches_style_rate": 1.0,
+      "avg_quality": 4.04,
+      "quality_distribution": {
+        "1": 0,
+        "2": 0,
+        "3": 4,
+        "4": 16,
+        "5": 5
+      },
+      "flag_counts": {},
+      "flagged_samples": []
+    }
+  }
+}
