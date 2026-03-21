@@ -53,6 +53,26 @@ Updated as results come in. Read alongside `next_steps.md` for full context.
 
 ---
 
+## Results (2026-03-21)
+
+### E1: `sft-stratos-seq4096` — COMPLETE
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 57% | 45% | 42% | **3.3%** |
+
+**Verdict: R1 hypothesis validated.** Seq_len fix (2048→4096) turned a broken experiment (11% MATH, 0% AIME) into a working one. MATH regressed from base 59% (style shift penalty, expected). AIME=3.3% is the first signal from stratos and confirms exploratory reasoning traces produce AIME signal.
+
+### E3: `sft-acemath-stratos-curriculum` — COMPLETE
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 12% | 33% | 33% | 0% |
+
+**Verdict: Curriculum hurt worse than starting cold.** acemath→stratos collapsed MATH from acemath's 66% to 33% — even below base (59%). E3 is *worse* than E1 (base→stratos: 42% MATH, 3.3% AIME) on every metric. The acemath LoRA weights actively interfere with stratos learning rather than providing a useful foundation. Incompatible adapter initialization is worse than random init.
+
+**Key insight**: curriculum learning only works when phase 1 and phase 2 data are compatible in style. acemath (step-by-step, exp=1) and stratos (exploratory, exp=8) are maximally incompatible — the gradients conflict rather than build.
+
+---
+
 ## Active Experiments
 
 ### E1: `sft-stratos-seq4096`
