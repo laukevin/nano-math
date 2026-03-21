@@ -773,9 +773,10 @@ def run_sft_lora(
         print(f"  WARNING: estimate ({train_est['total_gb']:.1f}GB) exceeds 95% of GPU! "
               f"Recommended: batch={rec['recommended_batch_size']}", flush=True)
         if max_tokens_per_batch <= 0:
-            # Use 4× seq_len: gives ~6-7 samples/batch at typical seq lengths,
-            # ~70% VRAM utilisation — well below the OOM threshold.
-            max_tokens_per_batch = max_seq_len * 4
+            # Target ~80% VRAM. Measured: 5.24 GB/sample at seq=4096 (attention
+            # matrices dominate, scale as seq²). 3× seq_len → ~5.6 samps/batch
+            # → ~79% of A100-40GB. 4× seq_len OOMs (104%).
+            max_tokens_per_batch = max_seq_len * 3
             print(f"  AUTO-FIX: switching to token-budget batching "
                   f"(max_tokens_per_batch={max_tokens_per_batch})", flush=True)
 
