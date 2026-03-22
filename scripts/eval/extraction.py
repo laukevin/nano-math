@@ -45,8 +45,22 @@ def extract_answer(text: str) -> Optional[str]:
 def normalize_answer(answer: str) -> str:
     """Normalize answer string for comparison."""
     answer = answer.strip()
+
+    # Resolve \frac{a}{b} or frac{a}{b} → a/b as a float before stripping LaTeX
+    frac = re.search(r"\\?frac\{([^}]+)\}\{([^}]+)\}", answer)
+    if frac:
+        try:
+            val = float(frac.group(1)) / float(frac.group(2))
+            if val == int(val):
+                return str(int(val))
+            # Round to 6 sig figs to avoid float noise
+            return str(round(val, 6))
+        except (ValueError, ZeroDivisionError):
+            pass
+
     # Remove $, \, spaces, commas
     answer = re.sub(r"[\$\\,\s]", "", answer)
+
     # Try to evaluate as number
     try:
         val = float(answer)
@@ -56,4 +70,17 @@ def normalize_answer(answer: str) -> str:
             return str(int(val))
         return str(val)
     except (ValueError, OverflowError):
-        return answer.lower()
+        pass
+
+    # Try simple a/b fraction (after LaTeX stripped)
+    slash = re.match(r"^(-?\d+)/(-?\d+)$", answer)
+    if slash:
+        try:
+            val = int(slash.group(1)) / int(slash.group(2))
+            if val == int(val):
+                return str(int(val))
+            return str(round(val, 6))
+        except ZeroDivisionError:
+            pass
+
+    return answer.lower()
