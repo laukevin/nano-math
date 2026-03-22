@@ -656,6 +656,7 @@ def run_sft_lora(
     min_chars: int = 0,
     max_chars: int = 0,
     save_every: int = 500,
+    eval_every: int = 0,
 ) -> dict:
     """Run LoRA SFT on a HuggingFace model, eval, and log to registry.
 
@@ -856,6 +857,8 @@ def run_sft_lora(
         sft_cmd.append(f"--init-adapter={init_adapter}")
     if save_every > 0:
         sft_cmd.append(f"--save-every={save_every}")
+    if eval_every > 0:
+        sft_cmd.append(f"--eval-every={eval_every}")
 
     # Run training with periodic checkpoint commits (every 10 min) so epoch/step
     # checkpoints survive a container crash mid-run.

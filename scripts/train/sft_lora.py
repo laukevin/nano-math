@@ -32,6 +32,109 @@ from transformers import (
     TrainingArguments,
 )
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+sys.path.insert(0, PROJECT_ROOT)
+
+
+class InlineEvalCallback(TrainerCallback):
+    """Run a quick eval every N steps; stop early if accuracy stops improving.
+
+    Uses the same generate/extract pipeline as run_hf.py so numbers are
+    comparable. Designed for AMC12 (20 problems, max_tokens=1024) — fast
+    enough to run every 100-200 steps without dominating training time.
+    """
+
+    def __init__(
+        self,
+        tokenizer,
+        problems: list[dict],
+        eval_every: int,
+        max_tokens: int = 1024,
+        patience: int = 2,
+        min_steps: int = 100,
+    ):
+        from scripts.eval.extraction import extract_answer, normalize_answer
+        from scripts.eval.run_hf import make_eval_prompt, _eos_token_ids
+
+        self.tokenizer = tokenizer
+        self.problems = problems
+        self.eval_every = eval_every
+        self.max_tokens = max_tokens
+        self.patience = patience
+        self.min_steps = min_steps
+        self._extract = extract_answer
+        self._normalize = normalize_answer
+        self._make_prompt = make_eval_prompt
+        self._eos_ids = None
+        self.history: list[tuple[int, float]] = []  # (step, accuracy)
+
+    def _eos_token_ids(self, model):
+        if self._eos_ids is None:
+            from scripts.eval.run_hf import _eos_token_ids
+            self._eos_ids = _eos_token_ids(self.tokenizer)
+        return self._eos_ids
+
+    @torch.no_grad()
+    def _run_eval(self, model) -> float:
+        model.eval()
+        n_correct = 0
+        eos_ids = self._eos_token_ids(model)
+        for prob in self.problems:
+            prompt = self._make_prompt(prob["problem"], self.tokenizer, "chat_think")
+            inputs = self.tokenizer(prompt, return_tensors="pt").to(model.device)
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=self.max_tokens,
+                do_sample=False,
+                eos_token_id=eos_ids,
+                pad_token_id=self.tokenizer.pad_token_id,
+            )
+            generated = outputs[0][inputs["input_ids"].shape[-1]:]
+            text = self.tokenizer.decode(generated, skip_special_tokens=True)
+            extracted = self._extract(text)
+            gt = self._normalize(str(prob["answer"]))
+            if extracted is not None and extracted == gt:
+                n_correct += 1
+        model.train()
+        return n_correct / len(self.problems) if self.problems else 0.0
+
+    def on_step_end(self, args, state, control, model=None, **kwargs):
+        step = state.global_step
+        if self.eval_every <= 0 or step == 0 or step % self.eval_every != 0:
+            return control
+
+        t0 = time.time()
+        acc = self._run_eval(model)
+        elapsed = time.time() - t0
+        self.history.append((step, acc))
+
+        n = len(self.problems)
+        n_correct = round(acc * n)
+        best = max(a for _, a in self.history)
+        print(
+            f"\n[inline-eval] step={step}  amc12={acc:.1%} ({n_correct}/{n})  "
+            f"best={best:.1%}  elapsed={elapsed:.0f}s",
+            flush=True,
+        )
+
+        # Early stopping: no improvement over last `patience` checkpoints,
+        # and we've run at least min_steps.
+        if len(self.history) > self.patience and step >= self.min_steps:
+            recent_accs = [a for _, a in self.history[-self.patience:]]
+            best_before = max(a for _, a in self.history[:-self.patience])
+            if all(a <= best_before for a in recent_accs):
+                print(
+                    f"[early-stop] No improvement over last {self.patience} evals "
+                    f"(best_before={best_before:.1%}, recent={[f'{a:.1%}' for a in recent_accs]}). "
+                    f"Stopping training.",
+                    flush=True,
+                )
+                control.should_training_stop = True
+
+        return control
+
+
 FEW_SHOT_PREFIX = """Q: There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today?
 A: There are 15 trees originally. Then there were 21 trees after some more were planted. So there must have been 21 - 15 = 6. The answer is \\boxed{6}.
 
@@ -393,6 +496,31 @@ def main():
         help="Save a checkpoint every N steps (0 = epoch-only). "
              "Keeps last 2 checkpoints. Use for crash recovery on long runs.",
     )
+    parser.add_argument(
+        "--eval-every", type=int, default=0,
+        help="Run inline AMC12 eval every N steps (0 = disabled). "
+             "Enables early stopping if accuracy plateaus.",
+    )
+    parser.add_argument(
+        "--eval-benchmark", type=str, default="amc12",
+        help="Benchmark to use for inline eval (default: amc12).",
+    )
+    parser.add_argument(
+        "--eval-n-inline", type=int, default=20,
+        help="Number of problems for inline eval (default: 20, keeps it fast ~2-3min).",
+    )
+    parser.add_argument(
+        "--eval-max-tokens-inline", type=int, default=1024,
+        help="Max generation tokens for inline eval.",
+    )
+    parser.add_argument(
+        "--early-stop-patience", type=int, default=2,
+        help="Stop training if inline eval doesn't improve for this many consecutive checks.",
+    )
+    parser.add_argument(
+        "--min-steps-before-stop", type=int, default=100,
+        help="Don't early-stop before this many steps (let model warm up first).",
+    )
     args = parser.parse_args()
 
     # Auto-enable token-budget batching for large seq_len if not explicitly set.
@@ -543,14 +671,43 @@ def main():
         **save_kwargs,
     )
 
+    # Inline eval callback
+    extra_callbacks = []
+    if args.eval_every > 0:
+        from scripts.eval.run_hf import load_benchmark
+        print(f"\n[inline-eval] Loading {args.eval_n_inline} {args.eval_benchmark} problems "
+              f"for eval-every={args.eval_every} steps...", flush=True)
+        eval_problems = load_benchmark(args.eval_benchmark, n=args.eval_n_inline)
+        print(f"[inline-eval] Baseline: running base eval on {len(eval_problems)} problems before training...", flush=True)
+        from scripts.eval.run_hf import run_eval
+        base_summary = run_eval(
+            model, tokenizer, eval_problems,
+            max_tokens=args.eval_max_tokens_inline,
+            prompt_format=args.prompt_format,
+            eval_batch_size=1,
+        )
+        print(f"[inline-eval] Base accuracy: {base_summary['accuracy']:.1%}", flush=True)
+        inline_cb = InlineEvalCallback(
+            tokenizer=tokenizer,
+            problems=eval_problems,
+            eval_every=args.eval_every,
+            max_tokens=args.eval_max_tokens_inline,
+            patience=args.early_stop_patience,
+            min_steps=args.min_steps_before_stop,
+        )
+        # Seed history with base score so early-stopping compares against it
+        inline_cb.history.append((0, base_summary["accuracy"]))
+        extra_callbacks.append(inline_cb)
+
     collator = DataCollatorForSeq2Seq(tokenizer, padding=True, pad_to_multiple_of=8)
+    callbacks = [ProgressCallback(log_every=10)] + extra_callbacks
     if use_token_budget:
         trainer = TokenBudgetTrainer(
             model=model,
             args=training_args,
             train_dataset=dataset,
             data_collator=collator,
-            callbacks=[ProgressCallback(log_every=10)],
+            callbacks=callbacks,
             max_tokens_per_batch=args.max_tokens_per_batch,
             seq_lengths=seq_lengths,
         )
@@ -560,7 +717,7 @@ def main():
             args=training_args,
             train_dataset=dataset,
             data_collator=collator,
-            callbacks=[ProgressCallback(log_every=10)],
+            callbacks=callbacks,
         )
 
     print(f"\nTraining: {args.epochs} epochs, batch={args.batch_size}, "

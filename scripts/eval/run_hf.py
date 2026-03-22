@@ -274,6 +274,38 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
         print(f"  Loaded {len(problems)} {name} problems in {time.time()-t0:.1f}s", flush=True)
         return problems
 
+    elif name == "amc12":
+        # Combine 2023 + 2024 + 2025 AMC 12 problems.
+        # These are post-2022 and unlikely to appear in training data.
+        # Answers are stored as the actual answer value (not A-E letter).
+        problems = []
+
+        loaders = [
+            # (dataset_id, split, problem_field, answer_field, id_prefix)
+            ("math-ai/amc23",                       "test",  "question", "answer", "amc23"),
+            ("rawsh/2024_AMC12",                    "train", "problem",  "answer", "amc24"),
+            ("sonthenguyen/amc12-2025-non-figure",  "train", "question", "answer", "amc25"),
+        ]
+        for hf_id, split, prob_field, ans_field, prefix in loaders:
+            try:
+                ds = load_dataset(hf_id, split=split, trust_remote_code=True)
+                for i, row in enumerate(ds):
+                    problems.append({
+                        "id": f"{prefix}_{i:04d}",
+                        "problem": row[prob_field],
+                        "answer": str(row[ans_field]),
+                        "source": prefix,
+                    })
+            except Exception as e:
+                print(f"  Warning: could not load {hf_id}: {e}", flush=True)
+
+        # Deterministic order: sort by source then index so eval is reproducible
+        problems.sort(key=lambda p: p["id"])
+        problems = problems[:n]
+        print(f"  Loaded {len(problems)} amc12 problems ({set(p['source'] for p in problems)}) "
+              f"in {time.time()-t0:.1f}s", flush=True)
+        return problems
+
     raise ValueError(f"Unknown benchmark: {name}")
 
 
