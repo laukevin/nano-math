@@ -1,114 +1,33 @@
 {
   "dataset": "acemath",
-  "analyzed_at": "2026-03-21T14:38:46.449206+00:00",
+  "analyzed_at": "2026-03-21T18:48:19.711214+00:00",
   "length_filter": {
     "min_chars": null,
     "max_chars": null
   },
   "phase1": {
-    "sample_size": 5,
+    "sample_size": 50,
     "non_llm_stats": {
-      "n": 5,
+      "n": 50,
       "length": {
-        "mean": 1546,
-        "median": 1261,
-        "stdev": 723,
-        "p10": 797,
-        "p25": 1049,
-        "p50": 1261,
-        "p75": 2199,
-        "p90": 2425,
-        "p95": 2425,
-        "p99": 2425
+        "mean": 2290,
+        "median": 2210,
+        "stdev": 1122,
+        "p10": 1074,
+        "p25": 1397,
+        "p50": 2221,
+        "p75": 2971,
+        "p90": 3538,
+        "p95": 3905,
+        "p99": 6449
       },
       "length_buckets": {
         "0_3k": {
-          "count": 5,
-          "pct": 1.0
-        },
-        "3k_7k": {
-          "count": 0,
-          "pct": 0.0
-        },
-        "7k_14k": {
-          "count": 0,
-          "pct": 0.0
-        },
-        "14k_28k": {
-          "count": 0,
-          "pct": 0.0
-        },
-        "28k_plus": {
-          "count": 0,
-          "pct": 0.0
-        }
-      },
-      "boxed_rate": 1.0,
-      "think_tag_rate": 0.0,
-      "coding_content_rate": 0.0,
-      "bold_headers_rate": 0.2,
-      "step_markers_rate": 0.2,
-      "r1_opener_rate": 0.2,
-      "multiline_reasoning_rate": 1.0
-    },
-    "llm_analysis": {
-      "style_score": 2,
-      "style_label": "structured",
-      "verbosity_score": 5,
-      "verbosity_label": "moderate",
-      "step_by_step_score": 9,
-      "proof_style_score": 4,
-      "exploratory_score": 1,
-      "latex_density_score": 8,
-      "difficulty_score": 6,
-      "difficulty_label": "mixed",
-      "reasoning_type": "step_by_step",
-      "structure_features": [
-        "bold_headers",
-        "numbered_steps",
-        "latex_heavy",
-        "word_problem_setup"
-      ],
-      "content_types": [
-        "algebra",
-        "arithmetic",
-        "calculus",
-        "combinatorics",
-        "probability",
-        "word_problems"
-      ],
-      "answer_format": "boxed_only",
-      "think_tag_usage": "none",
-      "is_math_dataset": true,
-      "coding_contamination": "none",
-      "quality_notes": "The dataset provides clear, well-structured step-by-step solutions for a variety of difficulty levels. The use of LaTeX is consistent and correct.",
-      "overall_quality_score": 9,
-      "model": "gemini-3-flash-preview"
-    }
-  },
-  "phase2": {
-    "sample_size": 25,
-    "non_llm_stats": {
-      "n": 25,
-      "length": {
-        "mean": 2190,
-        "median": 2199,
-        "stdev": 936,
-        "p10": 1049,
-        "p25": 1472,
-        "p50": 2199,
-        "p75": 2896,
-        "p90": 3526,
-        "p95": 3538,
-        "p99": 3905
-      },
-      "length_buckets": {
-        "0_3k": {
-          "count": 19,
+          "count": 38,
           "pct": 0.76
         },
         "3k_7k": {
-          "count": 6,
+          "count": 12,
           "pct": 0.24
         },
         "7k_14k": {
@@ -127,26 +46,99 @@
       "boxed_rate": 1.0,
       "think_tag_rate": 0.0,
       "coding_content_rate": 0.0,
-      "bold_headers_rate": 0.32,
-      "step_markers_rate": 0.16,
-      "r1_opener_rate": 0.2,
+      "bold_headers_rate": 0.36,
+      "step_markers_rate": 0.26,
+      "r1_opener_rate": 0.16,
       "multiline_reasoning_rate": 1.0
     },
-    "consistency_check": {
-      "model": "gemini-3.1-flash-lite-preview",
-      "n_checked": 25,
-      "is_math_rate": 1.0,
-      "matches_style_rate": 1.0,
-      "avg_quality": 4.48,
-      "quality_distribution": {
-        "1": 0,
-        "2": 1,
-        "3": 3,
-        "4": 4,
-        "5": 17
+    "llm_analysis": null
+  },
+  "phase2": {
+    "sample_size": 500,
+    "non_llm_stats": {
+      "n": 500,
+      "length": {
+        "mean": 2078,
+        "median": 1784,
+        "stdev": 1144,
+        "p10": 1074,
+        "p25": 1362,
+        "p50": 1786,
+        "p75": 2485,
+        "p90": 3344,
+        "p95": 3849,
+        "p99": 7281
       },
-      "flag_counts": {},
-      "flagged_samples": []
-    }
+      "length_buckets": {
+        "0_3k": {
+          "count": 428,
+          "pct": 0.856
+        },
+        "3k_7k": {
+          "count": 67,
+          "pct": 0.134
+        },
+        "7k_14k": {
+          "count": 5,
+          "pct": 0.01
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
+        }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.018,
+      "bold_headers_rate": 0.336,
+      "step_markers_rate": 0.248,
+      "r1_opener_rate": 0.144,
+      "multiline_reasoning_rate": 0.998
+    },
+    "consistency_check": null
+  },
+  "dedup": {
+    "n_total": 10000,
+    "n_unique_problems": 9993,
+    "duplication_ratio": 1.0,
+    "solutions_per_problem": {
+      "min": 1,
+      "max": 2,
+      "mean": 1.0,
+      "median": 1
+    },
+    "solutions_distribution": {
+      "1": 9986,
+      "2_5": 7,
+      "6_20": 0,
+      "21_50": 0,
+      "51_plus": 0
+    },
+    "top_problems": [
+      {
+        "count": 2,
+        "problem_prefix": "In a can, there is a mixture of milk and water in the ratio 4 : 5. If it is filled with an additiona"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "Every 1 kilogram of soybeans can produce 0.8 kilograms of soybean oil. With 20 kilograms of soybeans"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "The following are multiple choice questions (with answers) about astronomy.\n\nQ: Where do most short-"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "The following are multiple choice questions (with answers) about machine learning.\n\nQ: Which image d"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "The following are multiple choice questions (with answers) about high school biology.\n\nQ: In animal "
+      }
+    ]
   }
 }

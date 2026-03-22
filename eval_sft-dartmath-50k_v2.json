@@ -1,0 +1,30 @@
+{
+  "base_model": "Qwen/Qwen3-0.6B-Base",
+  "adapter": "/checkpoints/sft-dartmath-50k/checkpoint-12500",
+  "benchmarks": {
+    "svamp": {
+      "n_problems": 100,
+      "accuracy": 0.82,
+      "extraction_rate": 1.0,
+      "boxed_rate": 0.96
+    },
+    "gsm8k": {
+      "n_problems": 100,
+      "accuracy": 0.68,
+      "extraction_rate": 1.0,
+      "boxed_rate": 0.97
+    },
+    "math": {
+      "n_problems": 100,
+      "accuracy": 0.46,
+      "extraction_rate": 1.0,
+      "boxed_rate": 1.0
+    },
+    "aime_2025": {
+      "n_problems": 30,
+      "accuracy": 0.06666666666666667,
+      "extraction_rate": 1.0,
+      "boxed_rate": 0.9
+    }
+  }
+}

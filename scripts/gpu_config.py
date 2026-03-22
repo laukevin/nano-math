@@ -223,12 +223,16 @@ def recommend_batch_size(
     gradient_checkpointing: bool = True,
     packing: bool = False,
     avg_seq_len: int = 0,
+    memory_gb: float = 0.0,
 ) -> dict:
     """Recommend batch size for target GPU utilization.
 
+    memory_gb: if > 0, use this instead of looking up gpu in GPU_SPECS.
+               Useful for dynamic devices (MPS, unknown CUDA cards).
+
     Returns dict with recommended batch size, memory estimates, and safety margin.
     """
-    gpu_mem = GPU_SPECS.get(gpu, 40.0)
+    gpu_mem = memory_gb if memory_gb > 0 else GPU_SPECS.get(gpu, 40.0)
     target_mem = gpu_mem * target_utilization
 
     # Binary search for max batch size within target

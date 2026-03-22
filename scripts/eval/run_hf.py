@@ -44,6 +44,75 @@ def log_gpu_stats(prefix: str = ""):
     print(f"  {prefix}GPU mem: {allocated:.1f}GB allocated, {reserved:.1f}GB reserved, {total:.1f}GB total ({allocated/total*100:.0f}% used)", flush=True)
 
 
+def _detect_memory_gb() -> tuple[float, str]:
+    """Return (usable_memory_gb, device_label) for the current device.
+
+    CUDA: full VRAM (dedicated, not shared).
+    MPS:  70% of total system RAM — leaves headroom for OS + other processes
+          since Apple unified memory is shared.
+    CPU:  0.0 (signals caller to skip batching).
+    """
+    if torch.cuda.is_available():
+        mem = torch.cuda.get_device_properties(0).total_memory / 1e9
+        name = torch.cuda.get_device_properties(0).name
+        return mem, f"CUDA {name} ({mem:.0f}GB)"
+    if torch.backends.mps.is_available():
+        try:
+            import subprocess as _sp
+            total_ram = int(_sp.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True).stdout.strip()) / 1e9
+        except Exception:
+            total_ram = 8.0
+        usable = total_ram * 0.70  # leave ~30% for OS, other processes, CPU tensors
+        return usable, f"MPS ({usable:.0f}GB usable of {total_ram:.0f}GB RAM)"
+    return 0.0, "CPU"
+
+
+def auto_batch_size(mode: str = "eval", seq_len: int = 1024) -> int:
+    """Pick a safe batch size for the current device using the memory estimator.
+
+    mode:    "eval"  — inference only (KV cache, no gradients/optimizer)
+             "train" — LoRA SFT (gradients + optimizer states + logits)
+    seq_len: generation length for eval; training context length for train.
+
+    Target utilization (fraction of usable memory):
+      eval  → 70%  (light; only KV cache scales with batch)
+      train → 55%  (heavy; logits + gradient-checkpointing spikes need headroom)
+
+    Hard caps prevent absurdly large values that give no practical speedup:
+      eval  → 64   (30-100 problems fit in 1-2 batches at 64; no benefit going higher)
+      train → 32   (larger batches don't help throughput much on these small models)
+    """
+    mem_gb, device_label = _detect_memory_gb()
+    if mem_gb == 0.0:
+        return 1
+
+    from scripts.gpu_config import recommend_batch_size
+    target = 0.70 if mode == "eval" else 0.55
+    rec = recommend_batch_size(
+        mode=mode,
+        seq_len=seq_len,
+        target_utilization=target,
+        memory_gb=mem_gb,
+    )
+    bs = rec["recommended_batch_size"]
+
+    cap = 64 if mode == "eval" else 32
+    bs = min(bs, cap)
+
+    # Re-estimate memory at the actual (possibly capped) batch size for accurate display
+    from scripts.gpu_config import estimate_eval_memory_gb, estimate_training_memory_gb
+    actual_est = (estimate_eval_memory_gb if mode == "eval" else estimate_training_memory_gb)(
+        batch_size=bs, seq_len=seq_len
+    )
+    print(
+        f"  [auto batch] device={device_label}  mode={mode}  seq_len={seq_len}"
+        f"  -> batch={bs}  est={actual_est['total_gb']:.1f}GB"
+        f"  ({actual_est['total_gb']/mem_gb*100:.0f}% of {mem_gb:.0f}GB, cap={cap})",
+        flush=True,
+    )
+    return bs
+
+
 def load_hf_model(base_model: str, adapter_path: str | None = None):
     """Load HF model with optional LoRA adapter."""
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -216,29 +285,39 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
         return problems
 
     elif name == "math":
-        from datasets import concatenate_datasets
+        # Stratified sample: ~n/7 problems per subject, preferring Level 4-5.
+        # Fixes the concatenate_datasets bias where first 100 = all algebra.
         configs = [
             "algebra", "counting_and_probability", "geometry",
             "intermediate_algebra", "number_theory", "prealgebra", "precalculus",
         ]
-        parts = [load_dataset("EleutherAI/hendrycks_math", c, split="test") for c in configs]
-        ds = concatenate_datasets(parts)
+        n_per_subject = max(1, n // len(configs))
         problems = []
-        for i, row in enumerate(ds):
-            if i >= n:
-                break
-            boxed = re.findall(r"\\boxed\{([^}]+)\}", row["solution"])
-            answer = boxed[-1] if boxed else ""
-            problems.append(
-                {
-                    "id": f"math_{i:04d}",
-                    "problem": row["problem"],
-                    "answer": answer,
-                    "source": "math",
-                }
-            )
-        print(f"  Loaded {len(problems)} {name} problems in {time.time()-t0:.1f}s", flush=True)
-        return problems
+        for config in configs:
+            ds = load_dataset("EleutherAI/hendrycks_math", config, split="test")
+            rows = list(ds)
+            # Prefer hard problems (Level 4-5) for better model discrimination
+            hard = [r for r in rows if r.get("level", "") in ("Level 4", "Level 5")]
+            pool = hard if len(hard) >= n_per_subject else rows
+            pool = sorted(pool, key=lambda r: r.get("level", ""), reverse=True)
+            for row in pool[:n_per_subject]:
+                boxed = re.findall(r"\\boxed\{([^}]+)\}", row["solution"])
+                answer = boxed[-1] if boxed else ""
+                problems.append(
+                    {
+                        "id": f"math_{config[:4]}_{len(problems):03d}",
+                        "problem": row["problem"],
+                        "answer": answer,
+                        "source": "math",
+                        "level": row.get("level", ""),
+                    }
+                )
+        print(
+            f"  Loaded {len(problems)} {name} problems "
+            f"({n_per_subject}/subject, levels 4-5 preferred) in {time.time()-t0:.1f}s",
+            flush=True,
+        )
+        return problems[:n]
 
     elif name == "aime_2024":
         ds = load_dataset("MathArena/aime_2024", split="train")
@@ -275,48 +354,48 @@ def load_benchmark(name: str, n: int = 50) -> list[dict]:
         return problems
 
     elif name == "amc12":
-        # Combine 2023 + 2024 + 2025 AMC 12 problems.
-        # These are post-2022 and unlikely to appear in training data.
-        # Answers are stored as the actual answer value (not A-E letter).
+        # AMC 12 2025 only — least likely to appear in any training data.
+        # 42 text-only problems (figure-based excluded).
+        # Answers are the actual answer value, not the A-E letter.
+        try:
+            ds = load_dataset("sonthenguyen/amc12-2025-non-figure", split="train")
+        except Exception as e:
+            raise RuntimeError(f"Could not load amc12-2025: {e}") from e
+
         problems = []
-
-        loaders = [
-            # (dataset_id, split, problem_field, answer_field, id_prefix)
-            ("math-ai/amc23",                       "test",  "question", "answer", "amc23"),
-            ("rawsh/2024_AMC12",                    "train", "problem",  "answer", "amc24"),
-            ("sonthenguyen/amc12-2025-non-figure",  "train", "question", "answer", "amc25"),
-        ]
-        for hf_id, split, prob_field, ans_field, prefix in loaders:
-            try:
-                ds = load_dataset(hf_id, split=split, trust_remote_code=True)
-                for i, row in enumerate(ds):
-                    problems.append({
-                        "id": f"{prefix}_{i:04d}",
-                        "problem": row[prob_field],
-                        "answer": str(row[ans_field]),
-                        "source": prefix,
-                    })
-            except Exception as e:
-                print(f"  Warning: could not load {hf_id}: {e}", flush=True)
-
-        # Deterministic order: sort by source then index so eval is reproducible
-        problems.sort(key=lambda p: p["id"])
-        problems = problems[:n]
-        print(f"  Loaded {len(problems)} amc12 problems ({set(p['source'] for p in problems)}) "
-              f"in {time.time()-t0:.1f}s", flush=True)
+        for i, row in enumerate(ds):
+            if i >= n:
+                break
+            problems.append({
+                "id": f"amc25_{i:04d}",
+                "problem": row["question"],
+                "answer": str(row["answer"]),
+                "source": "amc12_2025",
+            })
+        print(f"  Loaded {len(problems)} amc12 2025 problems in {time.time()-t0:.1f}s", flush=True)
         return problems
 
     raise ValueError(f"Unknown benchmark: {name}")
 
 
 def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_think",
-             eval_batch_size=1):
+             eval_batch_size=0):
     """Run eval on problems. Returns summary dict.
 
-    eval_batch_size=1 (default) runs sequentially — safe for local/MPS.
-    On GPU (Modal), pass eval_batch_size=8 or 16 for much faster eval.
+    eval_batch_size=0 (default) auto-detects a safe batch size based on device
+    memory and the actual prompt lengths in this benchmark. Accounts for both
+    prompt tokens and generation budget in the KV cache estimate, so AIME
+    (long prompts) gets a smaller batch than SVAMP (short prompts).
     """
     model.eval()  # Ensure eval mode
+    if eval_batch_size == 0:
+        # Sample prompts to measure actual input length for this benchmark
+        sample = problems[:min(8, len(problems))]
+        sample_prompts = [make_eval_prompt(p["problem"], tokenizer, prompt_format) for p in sample]
+        tok_lens = [len(tokenizer.encode(p, add_special_tokens=False)) for p in sample_prompts]
+        avg_prompt_tokens = int(sum(tok_lens) / len(tok_lens)) if tok_lens else 256
+        effective_seq = avg_prompt_tokens + max_tokens  # total KV cache per sequence
+        eval_batch_size = auto_batch_size(mode="eval", seq_len=effective_seq)
     n_correct = 0
     n_extracted = 0
     n_boxed = 0
@@ -393,8 +472,8 @@ def main():
         "--prompt-format", type=str, default="chat_think",
         choices=["chat_think", "few_shot"],
     )
-    parser.add_argument("--eval-batch-size", type=int, default=1,
-                        help="Batch size for generation. 1=sequential (local), 16-64=batched (GPU)")
+    parser.add_argument("--eval-batch-size", type=int, default=0,
+                        help="Batch size for generation. 0=auto-detect from device/VRAM (default).")
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
 

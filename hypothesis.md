@@ -181,9 +181,14 @@ The model achieves 7% AIME (2/30 problems) because it saw one competition-geomet
 
 ---
 
-### E5: `sft-mot14k-5k-seq8192` — TRAINING COMPLETE, EVAL PENDING
+### E5: `sft-mot14k-5k-seq8192` — COMPLETE (AMC12 proxy; AIME eval timed out on Modal)
 **What**: MoT 14K+ bucket, ~5K samples, seq_len=8192, from base. Checkpoint: `sft-mot14k-5k-seq8192`.
 **Tests**: do the long hard MoT traces (64% survival at seq8192 vs 0% at seq4096) carry AIME signal?
+
+AMC12 2025 proxy result (30 problems, local eval): **3.3%** (1/30) — well below base (20%).
+Full AIME Modal eval timed out (6h limit, killed at AIME generation batch 21/25). AIME unknown.
+
+**Verdict: MoT 14K+ seq8192 does not beat base on AMC12.** Dramatically worse than base (−17pp). Even worse than stratos-seq4096 on AMC12 (6.7%). Long hard MoT traces carry no usable signal for general competition math — the model either overfits to MoT format or the traces are too hard for a 0.6B model to learn from even at seq8192.
 
 ---
 
@@ -196,30 +201,37 @@ Checkpoint: `sft-mot-phase1-then-14k-seq8192`.
 
 ## Wave 3 Summary (2026-03-21)
 
-| Experiment | SVAMP | GSM8K | MATH | AIME | Verdict |
-|---|---|---|---|---|---|
-| E1: stratos-7175-seq4096 | 57% | 45% | 42% | **3.3%** | ✅ First AIME signal |
-| E8: stratos-9430-seq4096 | 47% | 37% | 39% | **3.3%** | ❌ More data doesn't scale AIME |
-| E4: MoT14k-seq4096 | 47% | 59% | 59% | 0% | ❌ Invalid — 23/5000 samples survived |
-| E2: MoT7k-14k-seq4096 | 43% | 30% | 27% | 0% | ❌ Wrong bucket, too easy |
-| E3: acemath→stratos | 12% | 33% | 33% | 0% | ❌ Catastrophic forgetting |
-| E5: MoT14k-seq8192 | — | — | — | ? | ⏳ Eval pending |
-| E9: phase1→MoT14k-seq8192 | — | — | — | ? | ⏳ Eval pending |
+| Experiment | SVAMP | GSM8K | MATH | AIME | AMC12 | Verdict |
+|---|---|---|---|---|---|---|
+| acemath-think-10k-v2 | **85%** | **70%** | 62% | **3.3%** | **23.3%** | ✅ Best overall — beats base on AMC12 |
+| base Qwen3-0.6B | 24% | 40% | 59% | 0% | 20.0% | Baseline |
+| E1: stratos-7175-seq4096 | 57% | 45% | 42% | **3.3%** | 6.7% | ⚠️ First AIME signal, but hurts AMC12 |
+| E8: stratos-9430-seq4096 | 47% | 37% | 39% | **3.3%** | — | ❌ More data doesn't scale AIME |
+| E4: MoT14k-seq4096 | 47% | 59% | 59% | 0% | — | ❌ Invalid — 23/5000 samples survived |
+| E2: MoT7k-14k-seq4096 | 43% | 30% | 27% | 0% | — | ❌ Wrong bucket, too easy |
+| E3: acemath→stratos | 12% | 33% | 33% | 0% | — | ❌ Catastrophic forgetting |
+| E5: MoT14k-seq8192 | — | — | — | ? | 3.3% | ❌ −17pp vs base on AMC12; AIME timed out |
+| E9: phase1→MoT14k-seq8192 | — | — | — | ? | ⏳ | Eval pending |
 
-**Unexpected finding**: `acemath-think-10k-v2` (not in Wave 3 plan) also hits **3.3% AIME** with dramatically better easy benchmarks (85% SVAMP, 70% GSM8K). Think traces without R1 style match stratos on AIME.
-
-| acemath-think-10k-v2 | 85% | 70% | 62% | **3.3%** | ✅ Ties stratos, much better easy bench |
+**New critical finding (2026-03-21): R1-style training creates an AMC12/AIME tradeoff.**
+- acemath-think (CoT with think tags): beats base on AMC12 (+3.3pp), ties stratos on AIME (3.3%)
+- stratos seq4096 (R1-style): destroys AMC12 (6.7%, −13pp vs base 20%), despite AIME signal
+- MoT 14K+ seq8192 (R1-style): even worse on AMC12 (3.3%, −17pp vs base)
+- R1-style data teaches exploratory search patterns that confuse AMC12 (shorter, more direct problems)
+- Think-tag format alone (acemath-think) is sufficient for 3.3% AIME without the AMC12 penalty
 
 **Confirmed dead ends:**
 - More stratos at seq4096 (E8): AIME plateau at 3.3%, no scaling
 - acemath→R1 curriculum (E3): catastrophic forgetting, avoid
 - MoT 7K-14K bucket (E2): not enough difficulty after seq4096 filtering
 - MoT 14K+ at seq4096 (E4): structurally incompatible, 0% survival
+- stratos at seq8192: cancelled — AMC12 data shows R1-style data structurally hurts AMC12; same ceiling expected
 
 **Open questions:**
-1. Does MoT 14K+ at seq8192 produce AIME signal? (E5/E9 pending)
-2. Does stratos at seq8192 (89% survival vs 70% at seq4096) break the 3.3% ceiling? (untested)
-3. Why does acemath-think tie stratos on AIME despite different style? Is think-tag format sufficient?
+1. Does MoT 14K+ at seq8192 produce AIME signal? (E9 eval pending; E5 AIME timed out)
+2. Can any model beat base on BOTH AMC12 (20%) and AIME (0%) simultaneously?
+3. Why does acemath-think avoid the AMC12 penalty? Is CoT-with-think-tags a different regime than R1-style?
+4. Would a mixture of acemath-think + stratos preserve AMC12 score while adding AIME signal?
 
 ---
 
@@ -258,12 +270,21 @@ curriculum approach that doesn't cause catastrophic forgetting. Not pursuing yet
 
 ## Decision Rules (updated 2026-03-21)
 
-**AIME ceiling is 3.3% across all approaches. Next levers to try:**
+**AIME ceiling is 3.3% across all approaches. New dimension: AMC12 tradeoff.**
 
 | Condition | Next action |
 |-----------|-------------|
-| E5/E9 AIME > 3.3% | MoT 14K+ seq8192 breaks ceiling — scale it up |
-| E5/E9 AIME = 3.3% | Ceiling is not about trace length; try stratos seq8192 |
-| E5/E9 AIME = 0% | MoT doesn't generalise to AIME even at seq8192; stratos is the only R1 path |
-| Any model AIME > 3.3% | Use it as GRPO init — RL reward likely needed to push past 10% |
+| E9 AIME > 3.3% | MoT 14K+ seq8192 breaks ceiling AND avoids AMC12 penalty? → scale it up |
+| E9 AIME = 3.3%, AMC12 low | MoT curriculum doesn't help; R1-style is fundamentally incompatible with AMC12 |
+| E9 AIME = 0% | MoT doesn't generalise even with curriculum; abandon MoT path |
+| Any model beats base on BOTH AMC12 (>20%) AND AIME (>3.3%) | Critical finding — use it to design mixture |
+| acemath-think + stratos mixture | Test whether additive AIME signal from R1 data can coexist with acemath-think's AMC12 gains |
+| All SFT approaches flat at 3.3% AIME | SFT ceiling hit; proceed to GRPO/RL with outcome reward |
 | All seq8192 experiments flat at 3.3% | Model capacity bottleneck; try rank 32 or 1.5B base model |
+
+**Current best path (2026-03-21):**
+- For AMC12/competition math: acemath-think is the clear winner (23.3% vs 20% base, 3.3% AIME)
+- For AIME-only: R1-style data (stratos/MoT) gives 3.3% but at severe AMC12 cost
+- The key unanswered question: can a mixture achieve acemath-think's AMC12 score AND R1-style's AIME signal simultaneously?
+- stratos-seq8192 was cancelled after AMC12 data — testing more R1-style data expects same tradeoff
+- **Next priority: E9 eval**, then decide between acemath-think scaling or acemath+stratos mixture

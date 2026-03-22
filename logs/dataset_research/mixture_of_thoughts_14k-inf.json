@@ -1,25 +1,25 @@
 {
   "dataset": "mixture_of_thoughts",
-  "analyzed_at": "2026-03-21T14:37:54.266082+00:00",
+  "analyzed_at": "2026-03-21T18:59:38.269033+00:00",
   "length_filter": {
     "min_chars": 14000,
     "max_chars": null
   },
   "phase1": {
-    "sample_size": 5,
+    "sample_size": 50,
     "non_llm_stats": {
-      "n": 5,
+      "n": 50,
       "length": {
-        "mean": 31908,
-        "median": 28497,
-        "stdev": 12750,
-        "p10": 17605,
-        "p25": 25439,
-        "p50": 28497,
-        "p75": 36939,
-        "p90": 51062,
+        "mean": 26692,
+        "median": 24644,
+        "stdev": 10864,
+        "p10": 15100,
+        "p25": 17747,
+        "p50": 25439,
+        "p75": 30484,
+        "p90": 42215,
         "p95": 51062,
-        "p99": 51062
+        "p99": 59573
       },
       "length_buckets": {
         "0_3k": {
@@ -35,73 +35,61 @@
           "pct": 0.0
         },
         "14k_28k": {
-          "count": 2,
-          "pct": 0.4
+          "count": 31,
+          "pct": 0.62
         },
         "28k_plus": {
-          "count": 3,
-          "pct": 0.6
+          "count": 19,
+          "pct": 0.38
+        }
+      },
+      "seq_filter": {
+        "seq2048": {
+          "kept": 0,
+          "dropped": 50,
+          "survival_rate": 0.0
+        },
+        "seq4096": {
+          "kept": 0,
+          "dropped": 50,
+          "survival_rate": 0.0
+        },
+        "seq8192": {
+          "kept": 31,
+          "dropped": 19,
+          "survival_rate": 0.62
+        },
+        "seq16384": {
+          "kept": 49,
+          "dropped": 1,
+          "survival_rate": 0.98
         }
       },
       "boxed_rate": 1.0,
-      "think_tag_rate": 0.0,
+      "think_tag_rate": 0.02,
       "coding_content_rate": 0.0,
       "bold_headers_rate": 1.0,
-      "step_markers_rate": 0.6,
+      "step_markers_rate": 0.78,
       "r1_opener_rate": 1.0,
       "multiline_reasoning_rate": 1.0
     },
-    "llm_analysis": {
-      "style_score": 9,
-      "style_label": "r1_exploratory",
-      "verbosity_score": 8,
-      "verbosity_label": "verbose",
-      "step_by_step_score": 6,
-      "proof_style_score": 4,
-      "exploratory_score": 9,
-      "latex_density_score": 9,
-      "difficulty_score": 8,
-      "difficulty_label": "competition",
-      "reasoning_type": "exploratory_cot",
-      "structure_features": [
-        "bold_headers",
-        "latex_heavy",
-        "plain_prose",
-        "backtracking",
-        "scratch_work",
-        "word_problem_setup"
-      ],
-      "content_types": [
-        "algebra",
-        "geometry",
-        "number_theory",
-        "competition_math",
-        "proof_based"
-      ],
-      "answer_format": "think_then_boxed",
-      "think_tag_usage": "stripped",
-      "is_math_dataset": true,
-      "coding_contamination": "none",
-      "quality_notes": "The dataset provides high-quality, long-form reasoning traces similar to R1 models, characterized by conversational thinking and rigorous competition-level math problem solving.",
-      "overall_quality_score": 9,
-      "model": "gemini-3-flash-preview"
-    }
+    "llm_analysis": null
   },
   "phase2": {
-    "sample_size": 25,
+    "sample_size": 500,
     "non_llm_stats": {
-      "n": 25,
+      "n": 500,
       "length": {
-        "mean": 25682,
-        "median": 25439,
-        "stdev": 10002,
-        "p10": 15181,
-        "p25": 17605,
-        "p50": 25439,
-        "p75": 29064,
-        "p90": 42215,
-        "p95": 47018,
-        "p99": 51062
+        "mean": 26537,
+        "median": 24522,
+        "stdev": 10220,
+        "p10": 15270,
+        "p25": 18185,
+        "p50": 24569,
+        "p75": 32435,
+        "p90": 40862,
+        "p95": 48941,
+        "p99": 57136
       },
       "length_buckets": {
         "0_3k": {
@@ -117,37 +105,84 @@
           "pct": 0.0
         },
         "14k_28k": {
-          "count": 16,
-          "pct": 0.64
+          "count": 314,
+          "pct": 0.628
         },
         "28k_plus": {
-          "count": 9,
-          "pct": 0.36
+          "count": 186,
+          "pct": 0.372
+        }
+      },
+      "seq_filter": {
+        "seq2048": {
+          "kept": 0,
+          "dropped": 500,
+          "survival_rate": 0.0
+        },
+        "seq4096": {
+          "kept": 7,
+          "dropped": 493,
+          "survival_rate": 0.014
+        },
+        "seq8192": {
+          "kept": 321,
+          "dropped": 179,
+          "survival_rate": 0.642
+        },
+        "seq16384": {
+          "kept": 496,
+          "dropped": 4,
+          "survival_rate": 0.992
         }
       },
       "boxed_rate": 1.0,
-      "think_tag_rate": 0.0,
+      "think_tag_rate": 0.006,
       "coding_content_rate": 0.0,
-      "bold_headers_rate": 1.0,
-      "step_markers_rate": 0.8,
+      "bold_headers_rate": 0.994,
+      "step_markers_rate": 0.806,
       "r1_opener_rate": 1.0,
       "multiline_reasoning_rate": 1.0
     },
-    "consistency_check": {
-      "model": "gemini-3.1-flash-lite-preview",
-      "n_checked": 25,
-      "is_math_rate": 1.0,
-      "matches_style_rate": 1.0,
-      "avg_quality": 4.76,
-      "quality_distribution": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 6,
-        "5": 19
+    "consistency_check": null
+  },
+  "dedup": {
+    "n_total": 5000,
+    "n_unique_problems": 4988,
+    "duplication_ratio": 1.0,
+    "solutions_per_problem": {
+      "min": 1,
+      "max": 2,
+      "mean": 1.0,
+      "median": 1
+    },
+    "solutions_distribution": {
+      "1": 4976,
+      "2_5": 12,
+      "6_20": 0,
+      "21_50": 0,
+      "51_plus": 0
+    },
+    "top_problems": [
+      {
+        "count": 2,
+        "problem_prefix": "Problem 8.2. Given a $\\triangle A B C$. Let $M$ be the midpoint of $A B$, $\\angle C A B=15^{\\circ}$ "
       },
-      "flag_counts": {},
-      "flagged_samples": []
-    }
+      {
+        "count": 2,
+        "problem_prefix": "7. Highway (from 7th grade, 3 points). A highway running from west to east intersects with $n$ equal"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "13. In $\\triangle A B C$, $\\angle B=\\frac{\\pi}{4}, \\angle C=\\frac{5 \\pi}{12}, A C$ $=2 \\sqrt{6}, A C"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "3. [7 points] Let $M$ be a figure on the Cartesian plane consisting of all points $(x, y)$ such that"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "Three, (50 points) Find the maximum value of the positive integer $r$ such that: for any five 500-el"
+      }
+    ]
   }
 }

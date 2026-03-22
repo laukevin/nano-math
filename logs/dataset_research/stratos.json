@@ -1,24 +1,24 @@
 {
   "dataset": "stratos",
-  "analyzed_at": "2026-03-21T14:37:37.668497+00:00",
+  "analyzed_at": "2026-03-21T18:59:32.388073+00:00",
   "length_filter": {
     "min_chars": null,
     "max_chars": null
   },
   "phase1": {
-    "sample_size": 5,
+    "sample_size": 50,
     "non_llm_stats": {
-      "n": 5,
+      "n": 50,
       "length": {
-        "mean": 18410,
-        "median": 11240,
-        "stdev": 20999,
-        "p10": 4816,
+        "mean": 13590,
+        "median": 8853,
+        "stdev": 13063,
+        "p10": 4094,
         "p25": 5504,
-        "p50": 11240,
-        "p75": 15318,
-        "p90": 55172,
-        "p95": 55172,
+        "p50": 9086,
+        "p75": 12974,
+        "p90": 38058,
+        "p95": 48548,
         "p99": 55172
       },
       "length_buckets": {
@@ -27,125 +27,162 @@
           "pct": 0.0
         },
         "3k_7k": {
-          "count": 2,
-          "pct": 0.4
+          "count": 19,
+          "pct": 0.38
         },
         "7k_14k": {
-          "count": 1,
-          "pct": 0.2
+          "count": 19,
+          "pct": 0.38
         },
         "14k_28k": {
-          "count": 1,
-          "pct": 0.2
+          "count": 5,
+          "pct": 0.1
         },
         "28k_plus": {
-          "count": 1,
-          "pct": 0.2
+          "count": 7,
+          "pct": 0.14
+        }
+      },
+      "seq_filter": {
+        "seq2048": {
+          "kept": 18,
+          "dropped": 32,
+          "survival_rate": 0.36
+        },
+        "seq4096": {
+          "kept": 38,
+          "dropped": 12,
+          "survival_rate": 0.76
+        },
+        "seq8192": {
+          "kept": 43,
+          "dropped": 7,
+          "survival_rate": 0.86
+        },
+        "seq16384": {
+          "kept": 50,
+          "dropped": 0,
+          "survival_rate": 1.0
         }
       },
       "boxed_rate": 1.0,
       "think_tag_rate": 0.0,
       "coding_content_rate": 0.0,
-      "bold_headers_rate": 1.0,
-      "step_markers_rate": 0.6,
+      "bold_headers_rate": 0.88,
+      "step_markers_rate": 0.64,
       "r1_opener_rate": 1.0,
       "multiline_reasoning_rate": 1.0
     },
-    "llm_analysis": {
-      "style_score": 9,
-      "style_label": "r1_exploratory",
-      "verbosity_score": 7,
-      "verbosity_label": "verbose",
-      "step_by_step_score": 6,
-      "proof_style_score": 2,
-      "exploratory_score": 8,
-      "latex_density_score": 8,
-      "difficulty_score": 7,
-      "difficulty_label": "competition",
-      "reasoning_type": "exploratory_cot",
-      "structure_features": [
-        "scratch_work",
-        "word_problem_setup",
-        "latex_heavy",
-        "plain_prose"
-      ],
-      "content_types": [
-        "algebra",
-        "arithmetic",
-        "geometry",
-        "word_problems",
-        "competition_math"
-      ],
-      "answer_format": "think_then_boxed",
-      "think_tag_usage": "always",
-      "is_math_dataset": true,
-      "coding_contamination": "none",
-      "quality_notes": "The samples show high-quality, conversational Chain-of-Thought reasoning. The steps are logical and well-explained, moving from problem interpretation to calculation. The difficulty spans from middle school arithmetic to high school competition levels.",
-      "overall_quality_score": 9,
-      "model": "gemini-3-flash-preview"
-    }
+    "llm_analysis": null
   },
   "phase2": {
-    "sample_size": 25,
+    "sample_size": 500,
     "non_llm_stats": {
-      "n": 25,
+      "n": 500,
       "length": {
-        "mean": 13227,
-        "median": 9849,
-        "stdev": 12005,
-        "p10": 4118,
-        "p25": 6282,
-        "p50": 9849,
-        "p75": 14711,
-        "p90": 30737,
-        "p95": 38058,
-        "p99": 55172
+        "mean": 14027,
+        "median": 9102,
+        "stdev": 12973,
+        "p10": 4354,
+        "p25": 6138,
+        "p50": 9117,
+        "p75": 16450,
+        "p90": 32684,
+        "p95": 45161,
+        "p99": 64225
       },
       "length_buckets": {
         "0_3k": {
-          "count": 0,
-          "pct": 0.0
+          "count": 3,
+          "pct": 0.006
         },
         "3k_7k": {
-          "count": 10,
-          "pct": 0.4
+          "count": 165,
+          "pct": 0.33
         },
         "7k_14k": {
-          "count": 8,
-          "pct": 0.32
+          "count": 180,
+          "pct": 0.36
         },
         "14k_28k": {
-          "count": 4,
-          "pct": 0.16
+          "count": 95,
+          "pct": 0.19
         },
         "28k_plus": {
-          "count": 3,
-          "pct": 0.12
+          "count": 57,
+          "pct": 0.114
+        }
+      },
+      "seq_filter": {
+        "seq2048": {
+          "kept": 165,
+          "dropped": 335,
+          "survival_rate": 0.33
+        },
+        "seq4096": {
+          "kept": 349,
+          "dropped": 151,
+          "survival_rate": 0.698
+        },
+        "seq8192": {
+          "kept": 443,
+          "dropped": 57,
+          "survival_rate": 0.886
+        },
+        "seq16384": {
+          "kept": 494,
+          "dropped": 6,
+          "survival_rate": 0.988
         }
       },
       "boxed_rate": 1.0,
       "think_tag_rate": 0.0,
-      "coding_content_rate": 0.0,
-      "bold_headers_rate": 0.92,
-      "step_markers_rate": 0.72,
+      "coding_content_rate": 0.006,
+      "bold_headers_rate": 0.934,
+      "step_markers_rate": 0.63,
       "r1_opener_rate": 1.0,
       "multiline_reasoning_rate": 1.0
     },
-    "consistency_check": {
-      "model": "gemini-3.1-flash-lite-preview",
-      "n_checked": 25,
-      "is_math_rate": 1.0,
-      "matches_style_rate": 1.0,
-      "avg_quality": 4.96,
-      "quality_distribution": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 1,
-        "5": 24
+    "consistency_check": null
+  },
+  "dedup": {
+    "n_total": 10000,
+    "n_unique_problems": 9651,
+    "duplication_ratio": 1.04,
+    "solutions_per_problem": {
+      "min": 1,
+      "max": 8,
+      "mean": 1.0,
+      "median": 1
+    },
+    "solutions_distribution": {
+      "1": 9312,
+      "2_5": 338,
+      "6_20": 1,
+      "21_50": 0,
+      "51_plus": 0
+    },
+    "top_problems": [
+      {
+        "count": 8,
+        "problem_prefix": "Return your final response within \\boxed{}. The graph of $y = f(x)$ is shown below.\n\n[asy]\nunitsize("
       },
-      "flag_counts": {},
-      "flagged_samples": []
-    }
+      {
+        "count": 5,
+        "problem_prefix": "Return your final response within \\boxed{}. A standard deck of 52 cards has 13 ranks (Ace, 2, 3, 4, "
+      },
+      {
+        "count": 3,
+        "problem_prefix": "Return your final response within \\boxed{}. The graph of $y = f(x)$ is shown below.\n\n[asy]\nunitsize("
+      },
+      {
+        "count": 2,
+        "problem_prefix": "Return your final response within \\boxed{}. Doug constructs a square window using $8$ equal-size pan"
+      },
+      {
+        "count": 2,
+        "problem_prefix": "Return your final response within \\boxed{}. In a certain year the price of gasoline rose by $20\\%$ d"
+      }
+    ]
   }
 }

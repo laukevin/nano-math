@@ -1,0 +1,2375 @@
+{
+  "base_model": "Qwen/Qwen3-0.6B-Base",
+  "adapter": "/checkpoints/sft-dartmath-50k/checkpoint-12500",
+  "n_params": 606142464,
+  "benchmarks": {
+    "svamp": {
+      "n_problems": 100,
+      "accuracy": 0.64,
+      "extraction_rate": 0.99,
+      "boxed_rate": 0.88
+    },
+    "gsm8k": {
+      "n_problems": 100,
+      "accuracy": 0.48,
+      "extraction_rate": 0.98,
+      "boxed_rate": 0.86
+    },
+    "math": {
+      "n_problems": 100,
+      "accuracy": 0.4,
+      "extraction_rate": 0.99,
+      "boxed_rate": 0.8
+    },
+    "aime_2025": {
+      "n_problems": 30,
+      "accuracy": 0.0,
+      "extraction_rate": 0.9,
+      "boxed_rate": 0.36666666666666664
+    }
+  },
+  "detailed": {
+    "svamp": {
+      "n_problems": 100,
+      "accuracy": 0.64,
+      "extraction_rate": 0.99,
+      "boxed_rate": 0.88,
+      "per_problem": [
+        {
+          "id": "svamp_0000",
+          "correct": true,
+          "extracted": "27",
+          "ground_truth": "27",
+          "output_preview": "\ufffd\n\n\ufffd\n\nIf 35 bird families flew away to Asia, and 62 bird families flew away to Africa, then the number of bird families that flew away to Africa is 62.\nTo find out how many more bird families flew awa"
+        },
+        {
+          "id": "svamp_0001",
+          "correct": true,
+          "extracted": "4",
+          "ground_truth": "4",
+          "output_preview": "\nThe number of fish that disappeared is the number of fish that disappeared is the number of fish that disappeared. The number of fish that disappeared is the number of fish that disappeared. The numb"
+        },
+        {
+          "id": "svamp_0002",
+          "correct": false,
+          "extracted": "22",
+          "ground_truth": "16",
+          "output_preview": "'s strawberries. The problem. The problem is: Marco and his dad picked 30 pounds. If Marco picked 30 pounds. If Marco picked 30 pounds. If Marco picked 30 pounds, he picked 30 pounds. If Marco picked "
+        },
+        {
+          "id": "svamp_0003",
+          "correct": false,
+          "extracted": "100",
+          "ground_truth": "64",
+          "output_preview": ". The number of days the soda bottles will last is the number of days the soda bottles will last is the number of days the soda bottles will last is the number of days the soda bottles will last is th"
+        },
+        {
+          "id": "svamp_0004",
+          "correct": false,
+          "extracted": "49",
+          "ground_truth": "31",
+          "output_preview": ". The problem states that Olivia had 26 dollars. She spent 49 dollars. How much money did she spend at the supermarket and 10 dollars. How much money did she spend at the supermarket? How much money d"
+        },
+        {
+          "id": "svamp_0005",
+          "correct": false,
+          "extracted": "2130",
+          "ground_truth": "720",
+          "output_preview": "\nTo find the total number of pencils, we need to multiply the number of crayons by the number of crayons in a box. To find the total number of crayons, we multiply the number of crayons by the number "
+        },
+        {
+          "id": "svamp_0006",
+          "correct": false,
+          "extracted": "11",
+          "ground_truth": "21",
+          "output_preview": ". Let's say that Doug had $x$ marbles. If Ed had 45. Ed had 45 marbles. If Ed had 10 marbles, and Ed had 45, then Ed had 45 marbles, and Doug had 10 marbles? If Ed had 45. If Ed had 45 marbles, and Do"
+        },
+        {
+          "id": "svamp_0007",
+          "correct": true,
+          "extracted": "64",
+          "ground_truth": "64",
+          "output_preview": "\nThe number of children on the bus is the number of children on the bus is the number of children on the bus. The number of children on the bus, 38 more got on the bus? To find the total number of chi"
+        },
+        {
+          "id": "svamp_0008",
+          "correct": false,
+          "extracted": "720",
+          "ground_truth": "450",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nTo find the total number of cookies Helen baked till last night, we need to add up the number of cookies she baked yesterday, this morning, and the day before yesterday.\n\nYester"
+        },
+        {
+          "id": "svamp_0009",
+          "correct": true,
+          "extracted": "143550",
+          "ground_truth": "143550",
+          "output_preview": "\nThe number of oranges is $666666666666666666666666666666666666666666666666666666666666666\n\nTo find the total number of oranges harvested in 87 days, we need to multiply the number of sacks harvested "
+        },
+        {
+          "id": "svamp_0010",
+          "correct": true,
+          "extracted": "3",
+          "ground_truth": "3",
+          "output_preview": "\nTo find out how many minutes the machine worked.\nThe machine made 9 shirts. The machine made 9 shirts yesterday. The machine made 44 shirts today. The total number of shirts in total yesterday and to"
+        },
+        {
+          "id": "svamp_0011",
+          "correct": false,
+          "extracted": "550",
+          "ground_truth": "460",
+          "output_preview": ". He has 10 books and 10 books. He has 10 books and 10 books and 10 books and 10 books, he has 10 magazines, and 10 shelves. To find the total number of books and magazines does Bryan have in all his "
+        },
+        {
+          "id": "svamp_0012",
+          "correct": true,
+          "extracted": "1",
+          "ground_truth": "1",
+          "output_preview": "\nThe number of apps he added is the difference between the number of apps he had before adding some. The number of apps he had before adding some, he added some. To find out how many apps did he add? "
+        },
+        {
+          "id": "svamp_0013",
+          "correct": true,
+          "extracted": "13",
+          "ground_truth": "13",
+          "output_preview": "\nTo find out how much money he spent, we just need to add the cost of the candy bar and the chocolate. The candy bar cost $ 7 and a chocolate for $ 6. To find out how much money did Dan spend in total"
+        },
+        {
+          "id": "svamp_0014",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": "\nThe number of bananas in each group is the number of bananas in each group is the number of bananas in each group is the number of bananas in each group. The number of bananas in each group is the nu"
+        },
+        {
+          "id": "svamp_0015",
+          "correct": true,
+          "extracted": "369",
+          "ground_truth": "369",
+          "output_preview": "\nThe problem is asking us to find how much farther they have to go to the form of a number. The answer is $129$ feet. To find how much farther they have to go, we subtract the current depth from the c"
+        },
+        {
+          "id": "svamp_0016",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": "\nThe number of people that can be divided by the number of seats is 20. The number of seats is divided by the number of seats, and there are 20 people at the same time, and there are 4 seats in the Fe"
+        },
+        {
+          "id": "svamp_0017",
+          "correct": false,
+          "extracted": "-3",
+          "ground_truth": "136",
+          "output_preview": "\nThe farmer picked 53 tomatoes and 35 potatoes. He picked 15 more tomatoes and 150 potatoes. How many tomatoes and potatoes does he have in total?\n\nThe farmer had 1 tomatoes and 15 potatoes in his gar"
+        },
+        {
+          "id": "svamp_0018",
+          "correct": true,
+          "extracted": "91",
+          "ground_truth": "91",
+          "output_preview": ". He lost 66. He lost 66. He has 92. He lost 66. He has 92. He lost 66. He has 92. To find out how many he had he lost 66. He lost 66. Let's call the number of bottle caps Danny had at first $x$. Then"
+        },
+        {
+          "id": "svamp_0019",
+          "correct": false,
+          "extracted": "15",
+          "ground_truth": "13",
+          "output_preview": ". The answer is 4+5=9. The problem states that Jack received a total of 4 emails in the morning, 5 emails in the afternoon, and 6 emails in the night? To find the total number of emails Jack received,"
+        },
+        {
+          "id": "svamp_0020",
+          "correct": true,
+          "extracted": "7",
+          "ground_truth": "7",
+          "output_preview": "\nTo find out how many sweet cookies Paco had left after eating some of them. To find out how many sweet cookies Paco had left, we need to subtract the number of sweet cookies. To find out how many sal"
+        },
+        {
+          "id": "svamp_0021",
+          "correct": true,
+          "extracted": "33",
+          "ground_truth": "33",
+          "output_preview": "\nThe problem states that the ring tosses $500$5000000000000000000000000000000000000000000000\n\nThe problem states that the ring toss game made the same amount of money each day, and in total they earne"
+        },
+        {
+          "id": "svamp_0022",
+          "correct": false,
+          "extracted": "16",
+          "ground_truth": "3",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nLet's call the number of files Dave deleted $x$.\nBefore deleting the files, Dave had 24 files and 13 apps, so the total number of files and apps he had was $24 + 13 = 37$.\nAfter"
+        },
+        {
+          "id": "svamp_0023",
+          "correct": true,
+          "extracted": "333",
+          "ground_truth": "333",
+          "output_preview": "\nThe number of girls is the number of boys. The number of girls is 565 more than the number of boys. The number of girls is 565 more than the number of girls than boys? To find the number of girls is "
+        },
+        {
+          "id": "svamp_0024",
+          "correct": true,
+          "extracted": "22",
+          "ground_truth": "22",
+          "output_preview": ". The number of eggs is the number of eggs that can be found by multiplying the number of groups of 1111 into 111111111, and she has 11111111111111\n\nThe problem is asking for the total number of eggs "
+        },
+        {
+          "id": "svamp_0025",
+          "correct": true,
+          "extracted": "3",
+          "ground_truth": "3",
+          "output_preview": " of the problem. The answer is 7. The recipe calls for 3. The recipe calls for 7. She needs to add 7. If she has already used 7. She needs to add 7. The recipe calls for 7. The recipe calls for 7. The"
+        },
+        {
+          "id": "svamp_0026",
+          "correct": false,
+          "extracted": "86",
+          "ground_truth": "3",
+          "output_preview": "\nLet's denote the number of apps he deleted as $x$. He deleted $x$$. So, he deleted $2 + 89 = 111 apps. So, he deleted $x$ apps left. So, he deleted? The number of apps he deleted. The number of apps "
+        },
+        {
+          "id": "svamp_0027",
+          "correct": true,
+          "extracted": "574664",
+          "ground_truth": "574664",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nThe number of kids who went to the camp is 202958, and the number of kids who stayed home is 777622.\nTo find out how many more kids stayed home compared to those who went to the"
+        },
+        {
+          "id": "svamp_0028",
+          "correct": true,
+          "extracted": "11",
+          "ground_truth": "11",
+          "output_preview": "'s jump was 13 inches. The problem states that the grasshopper jumped 13 inches. The problem asks us to find out how far the frog jumped. The problem states that the frog jumped 13 inches. The grassho"
+        },
+        {
+          "id": "svamp_0029",
+          "correct": false,
+          "extracted": "87",
+          "ground_truth": "8",
+          "output_preview": ". The problem asks for the total number of balloons and balls. To find the total number of balloons and balls, we need to add the number of balls. To find the total number of balls, we need to add the"
+        },
+        {
+          "id": "svamp_0030",
+          "correct": true,
+          "extracted": "3",
+          "ground_truth": "3",
+          "output_preview": "\nThe number of sacks of oranges is 24 sacks per day. If he harvests of oranges per day, and he can harvest 24 sacks of oranges per day, he can harvests of oranges? To find the number of oranges, we ne"
+        },
+        {
+          "id": "svamp_0031",
+          "correct": true,
+          "extracted": "12",
+          "ground_truth": "12",
+          "output_preview": "\nThe problem states that Ryan spends 6 hours on english and 4 hours on chinese. How many hours does Ryan spend on learning english and 3 days. How many hours does he spend on learning chinese in total"
+        },
+        {
+          "id": "svamp_0032",
+          "correct": false,
+          "extracted": "73",
+          "ground_truth": "184",
+          "output_preview": "\nThe problem asks us to find out how many more cakes he made. To find out how many more cakes he made than those he sold. To find out how many more cakes he made than those he sold. To find out how ma"
+        },
+        {
+          "id": "svamp_0033",
+          "correct": true,
+          "extracted": "16",
+          "ground_truth": "16",
+          "output_preview": ". The initial number of people on the bus is 12. At the next stop, 124 people on the bus. The bus, 4 more people got on the bus. The bus, 12 people. The bus. The bus can not have more people are on th"
+        },
+        {
+          "id": "svamp_0034",
+          "correct": false,
+          "extracted": "6",
+          "ground_truth": "9",
+          "output_preview": ". The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer is 6. The answer "
+        },
+        {
+          "id": "svamp_0035",
+          "correct": true,
+          "extracted": "20",
+          "ground_truth": "20",
+          "output_preview": "\nThe number of shirts made by the machine is 4 shirts in 5 minutes. The number of shirts made in 5 minutes is 4 shirts. To find out how many shirts it can make in 5 minutes. We can find the number of "
+        },
+        {
+          "id": "svamp_0036",
+          "correct": false,
+          "extracted": null,
+          "ground_truth": "3",
+          "output_preview": ". The question asks us to find out of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the numb"
+        },
+        {
+          "id": "svamp_0037",
+          "correct": true,
+          "extracted": "125",
+          "ground_truth": "125",
+          "output_preview": ". The total number of pages is the sum of the number of pages is the sum of the number of pages. The total number of pages is 66 pages long. The second chapter is 35 pages long. The third chapter is 2"
+        },
+        {
+          "id": "svamp_0038",
+          "correct": true,
+          "extracted": "39",
+          "ground_truth": "39",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nLet's call the number of children riding on the bus before the bus stop $x$. At the bus stop, 2 more children got on the bus, so the total number of children on"
+        },
+        {
+          "id": "svamp_0039",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": " the number of eggs in each group. The problem tells us to divide the eggs into 3 groups. She has 4 groups of 15. She wants to divide them into 3 groups. To find out how many eggs will each group have"
+        },
+        {
+          "id": "svamp_0040",
+          "correct": false,
+          "extracted": "17",
+          "ground_truth": "7",
+          "output_preview": "\nThe problem states that he had 32 bottle caps and he now has 15 more than he had 15 bottle caps and he now has 15 bottle caps. If he had 32 bottle caps and now has 15 more than he had earlier? The pr"
+        },
+        {
+          "id": "svamp_0041",
+          "correct": false,
+          "extracted": "15.theproblemstatesthatsheplayedtagwith15kidsand15kidsontuesday.sheplayedtagwith15kidsonwednesday.tofindthetotalnumberofkidssheplayedtagwithintotalwejustneedtoaddthenumberofkidssheplayedonmondayandtuesday.theproblemstatesthatsheplayedtagwith15kidsonmondayand18kidsontuesday.tofindthetotalnumberofkidssheplayedwithonmondayandtuesdayweaddthesetwonumberstogether:15+18=33.sojuliaplayedwith33kidsonmondayandtuesday.theansweris:33theanswerisboxed{33",
+          "ground_truth": "33",
+          "output_preview": ". The answer is $\\boxed{15. The problem states that she played tag with 15 kids and 15 kids on tuesday. She played tag with 15 kids on wednesday. To find the total number of kids she played tag with i"
+        },
+        {
+          "id": "svamp_0042",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": ". The problem states that she gave 5 marbles to each of her 5 marbles. If she had 5 marbles, and each of her class, and her class of 5 to each of her class 5 to each of her class? If Haley gave 5 marb"
+        },
+        {
+          "id": "svamp_0043",
+          "correct": true,
+          "extracted": "81",
+          "ground_truth": "81",
+          "output_preview": "\nThe problem is asking us how much deeper is the water than Dean's height. The problem is asking us how much deeper is the water than Dean's height. The problem is asking us how much deeper is the wat"
+        },
+        {
+          "id": "svamp_0044",
+          "correct": true,
+          "extracted": "68",
+          "ground_truth": "68",
+          "output_preview": "\nThe first chapter has 91 pages. The second chapter has 23 pages. The third chapter has 100 pages. The total number of pages. The third chapter has 100 pages. To find the total number of pages, we nee"
+        },
+        {
+          "id": "svamp_0045",
+          "correct": true,
+          "extracted": "22",
+          "ground_truth": "22",
+          "output_preview": "\ufffd\n\n\ufffd\n\nTo find out how many more visitors visited the Buckingham palace on that day than on the previous day, we need to subtract the number of visitors on the previous day from the number of visitors "
+        },
+        {
+          "id": "svamp_0046",
+          "correct": true,
+          "extracted": "17",
+          "ground_truth": "17",
+          "output_preview": "\nThe problem is asking for the cost of each t-shirt. The problem is asking for the cost of each t-shirt. The shop sold 12 t-shirts. The total number of t-shirts sold? The total number of t-shirts sold"
+        },
+        {
+          "id": "svamp_0047",
+          "correct": true,
+          "extracted": "11",
+          "ground_truth": "11",
+          "output_preview": "\nTo find the total number of emails he received, we add up the number of emails he received in the morning, afternoon, and evening. The morning he received 3 emails in the evening. To find the total n"
+        },
+        {
+          "id": "svamp_0048",
+          "correct": true,
+          "extracted": "38608",
+          "ground_truth": "38608",
+          "output_preview": "\nThe number of kids going to the camp. The number of kids going to the camp is the number of kids going to the camp. The number of kids going to the camp, the number of kids go to the camp. To find th"
+        },
+        {
+          "id": "svamp_0049",
+          "correct": false,
+          "extracted": "24",
+          "ground_truth": "66",
+          "output_preview": " asked the frog jumped 10 inches. The frog jumped 10 inches. The frog jumped 10 inches. The frog jumped 10 inches. The frog jumped 10 inches.5 inches. The frog jumped 10 inches. The frog jumped 10 inc"
+        },
+        {
+          "id": "svamp_0050",
+          "correct": true,
+          "extracted": "27",
+          "ground_truth": "27",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nOriginally, there were 3 bird families living near the mountain. Then, 26 new bird families came to live near the mountain. So, the total number of bird families now is $3 + 26 "
+        },
+        {
+          "id": "svamp_0051",
+          "correct": false,
+          "extracted": "320",
+          "ground_truth": "72",
+          "output_preview": "\nTo find the total number of items, we need to multiply the number of action figures. He has 8 action figures on each shelf. He has 1 shelves. So, the total number of action figures and cabinets in al"
+        },
+        {
+          "id": "svamp_0052",
+          "correct": true,
+          "extracted": "17",
+          "ground_truth": "17",
+          "output_preview": "\nTo find the length of his hair, we need to subtract the length of the hair after he cut off 1118 inches. Then he added 12 inches.5 inches. So, he added 12 inches. The initial length of the hair is 16"
+        },
+        {
+          "id": "svamp_0053",
+          "correct": false,
+          "extracted": "-6",
+          "ground_truth": "6",
+          "output_preview": "\nTo find out how many more games she had than her friends had. The problem tells us that Katie had 57 games and her friends had 63 games. To find out how many games does she have than her friends? We "
+        },
+        {
+          "id": "svamp_0054",
+          "correct": true,
+          "extracted": "6",
+          "ground_truth": "6",
+          "output_preview": "\nTo find out how many more packs of cookie packs of cookie packs of cake packs of cake. The problem asks for the grocery store and bought 10 packs of cookie and 4 packs of cake? To find out how many m"
+        },
+        {
+          "id": "svamp_0055",
+          "correct": true,
+          "extracted": "22",
+          "ground_truth": "22",
+          "output_preview": "\nThe problem asks for the total number of red and green peaches. The problem asks for the total number of red and green peaches are in the basket. The total number of peaches is the sum of 6 and 16 ar"
+        },
+        {
+          "id": "svamp_0056",
+          "correct": true,
+          "extracted": "1",
+          "ground_truth": "1",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nMary has already put in 7 cups of flour. The recipe calls for 10 cups of flour in total. So, she needs to add $10 - 7 = 3$ more cups of flour.\nThe recipe calls "
+        },
+        {
+          "id": "svamp_0057",
+          "correct": true,
+          "extracted": "1",
+          "ground_truth": "1",
+          "output_preview": "\nThe problem asks us to find out how many more cookies he ate than he gave to his friend. To find out how many more cookies than his friend. To find out how many cookies to his friend. To find out how"
+        },
+        {
+          "id": "svamp_0058",
+          "correct": true,
+          "extracted": "1396",
+          "ground_truth": "1396",
+          "output_preview": ". The total number of students is the sum of the number of students in the school. The total number of students in the school. The total number of students in the school. The total number of students "
+        },
+        {
+          "id": "svamp_0059",
+          "correct": false,
+          "extracted": "7",
+          "ground_truth": "1",
+          "output_preview": ". The total number of red peaches is 40. The number of green peaches is 120 peaches. If each basket contains 4 red peaches and 3 green peaches. The total number of red peaches is 4. Let's call the num"
+        },
+        {
+          "id": "svamp_0060",
+          "correct": true,
+          "extracted": "128",
+          "ground_truth": "128",
+          "output_preview": "\nLet's solve this problem by setting up an equation. Let's call the weight of Jessie before she started jogging. She lost 1 kilograms. So, she was 27 kilograms. To find out how much she lost before sh"
+        },
+        {
+          "id": "svamp_0061",
+          "correct": true,
+          "extracted": "53",
+          "ground_truth": "53",
+          "output_preview": ". The problem is asking for the total number of push-ups. Let's call the number of push-ups that he did. Let's call the number of push-ups. Let's call the number of push-ups that he did? Let's call th"
+        },
+        {
+          "id": "svamp_0062",
+          "correct": true,
+          "extracted": "298",
+          "ground_truth": "298",
+          "output_preview": "\nThe number of boys is $257. The number of girls is 257. The total number of students in the school? The number of girls is 257. The number of students are there now? The number of students are there "
+        },
+        {
+          "id": "svamp_0063",
+          "correct": false,
+          "extracted": "5222",
+          "ground_truth": "30",
+          "output_preview": "'s collection. The problem: Josh had 2222. He lost 22222222222222222222222222222222222222222222\n\nTo find the number of marbles Josh has now, we need to add the number of marbles he found to the number"
+        },
+        {
+          "id": "svamp_0064",
+          "correct": true,
+          "extracted": "61",
+          "ground_truth": "61",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nTo find out how many more visitors visited the Buckingham palace on that day than on the previous day, we need to subtract the number of visitors the previous day from the numbe"
+        },
+        {
+          "id": "svamp_0065",
+          "correct": false,
+          "extracted": "332",
+          "ground_truth": "265",
+          "output_preview": "\nThe problem tells us how many cards she has now. The problem is asking us how many cards she has now. We can find out how many cards she had before. She gave him 34 cards. To find out how many cards "
+        },
+        {
+          "id": "svamp_0066",
+          "correct": true,
+          "extracted": "23",
+          "ground_truth": "23",
+          "output_preview": "unfortunately, the problem is asking for the number of blocks that he has left after he used 36 blocks to build a tower, and he had 36 blocks to build a tower and he had 36 blocks to build a tower. Th"
+        },
+        {
+          "id": "svamp_0067",
+          "correct": true,
+          "extracted": "19",
+          "ground_truth": "19",
+          "output_preview": "\nThe number of people on the train is the number of people on the train is the number of people on the train, the number of people on the train, and 111 people on the train? Then, 8 more people on the"
+        },
+        {
+          "id": "svamp_0068",
+          "correct": true,
+          "extracted": "33",
+          "ground_truth": "33",
+          "output_preview": "'s tree. The number of apples on her tree. If she picked 8 apples from her tree. She picked 8 apples from her tree. She picked 8 trees. So, she has 8 apples left. So, she picked 8 trees? Let's call th"
+        },
+        {
+          "id": "svamp_0069",
+          "correct": true,
+          "extracted": "22",
+          "ground_truth": "22",
+          "output_preview": "\nThe number of children who got off the bus. Let's call the number of children who got off the bus. If we know that the bus had 43 children got off. If we know that 43-4=9 children. The number of chil"
+        },
+        {
+          "id": "svamp_0070",
+          "correct": false,
+          "extracted": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+          "ground_truth": "6",
+          "output_preview": "\nThe number of green peaches is $11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "id": "svamp_0071",
+          "correct": false,
+          "extracted": "-158",
+          "ground_truth": "91",
+          "output_preview": " cards. She gave away 1000000000000000000000000000000000000000000000000000000000000000000000000000\n\nThe problem tells us that Nell had 246 baseball cards and 214 Ace cards, and she gave away some of h"
+        },
+        {
+          "id": "svamp_0072",
+          "correct": true,
+          "extracted": "51",
+          "ground_truth": "51",
+          "output_preview": "\nThe problem is asking for the total amount of the total amount is the total amount is the amount of the total amount is the amount of 7 dollars. The amount of the total amount is the amount of the to"
+        },
+        {
+          "id": "svamp_0073",
+          "correct": false,
+          "extracted": "0",
+          "ground_truth": "117",
+          "output_preview": ". The number of chairs is 142. The number of chairs is 14*9= 14*9=128. The number of chairs is 14*9=14 chairs in total? The number of chairs are there than tables? The number of chairs is 14*9=126 cha"
+        },
+        {
+          "id": "svamp_0074",
+          "correct": true,
+          "extracted": "331",
+          "ground_truth": "331",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nLet's call the amount of wax he already has $x$ grams. We know that he needs a total of 57 g of colors, and he needs 22 g more than the amount of wax he already has. So the tota"
+        },
+        {
+          "id": "svamp_0075",
+          "correct": false,
+          "extracted": "1.212121",
+          "ground_truth": "332",
+          "output_preview": ". The total number of pages he read is equal to the number of pages he read is equal to the number of pages he read is equal to the number of pages in total. The number of pages he read is equal to th"
+        },
+        {
+          "id": "svamp_0076",
+          "correct": true,
+          "extracted": "6",
+          "ground_truth": "6",
+          "output_preview": "\nThe number of action figures is the number of action figures is 5+2=7. The number of action figures is 5+2=7. He added 5+2=7. The number of action figures is 5+2=7. The number of action figures is 5+"
+        },
+        {
+          "id": "svamp_0077",
+          "correct": false,
+          "extracted": "-374",
+          "ground_truth": "728",
+          "output_preview": ". The problem is asking for the number of crayons. Let's call the number of crayons he had. Let's call the number of crayons. He had 551 crayons. The number of crayons he had. So, the number of crayon"
+        },
+        {
+          "id": "svamp_0078",
+          "correct": true,
+          "extracted": "826",
+          "ground_truth": "826",
+          "output_preview": ". The total number of students is the sum of the number of students who suggested adding mashed potatoes, the number of students who suggested adding bacon, the total number of food items is the numbe"
+        },
+        {
+          "id": "svamp_0079",
+          "correct": true,
+          "extracted": "1891",
+          "ground_truth": "1891",
+          "output_preview": "\nThe total number of pages is the total number of pages is the total number of pages is the total number of pages is the total number of pages is 31 chapters times 61 pages is the book have? The book "
+        },
+        {
+          "id": "svamp_0080",
+          "correct": false,
+          "extracted": "747",
+          "ground_truth": "737",
+          "output_preview": "\ufffd\n\n\ufffd\n\nTo find the total number of students going on the trip, we multiply the number of classrooms by the number of students in each classroom: $67 \\times 66 = 4482$.\nTo find the number of buses neede"
+        },
+        {
+          "id": "svamp_0081",
+          "correct": true,
+          "extracted": "51",
+          "ground_truth": "51",
+          "output_preview": ". The problem asks for the total number of candy and chocolate. To find the total number of candy and chocolate, we need to add the number of candy and chocolate. The number of candy and chocolate. Th"
+        },
+        {
+          "id": "svamp_0082",
+          "correct": true,
+          "extracted": "12",
+          "ground_truth": "12",
+          "output_preview": "\nTo find out how many cookies he had initially, we need to subtract the number of cookies he had left. To find out how many he had initially, 1 cookies. To find out how many cookies he had left, we su"
+        },
+        {
+          "id": "svamp_0083",
+          "correct": true,
+          "extracted": "10",
+          "ground_truth": "10",
+          "output_preview": "\nThe number of goldfish that remained after the stray cats ate 5 goldfish. So, the number of goldfish that remained after the stray cats ate 5 goldfish. To find the number of goldfish that remained, w"
+        },
+        {
+          "id": "svamp_0084",
+          "correct": true,
+          "extracted": "30057",
+          "ground_truth": "30057",
+          "output_preview": "\ufffd\n\n\ufffd\n\nThe number of kids who went to camp is the total number of kids in Lawrence county minus the number of kids who stayed home. So we subtract the number of kids who stayed home from the total numb"
+        },
+        {
+          "id": "svamp_0085",
+          "correct": true,
+          "extracted": "8",
+          "ground_truth": "8",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nLet's say the number of children who got on the bus at the bus stop is $x$.\nBefore the bus stop, there were 2 children on the bus.\nAfter the bus stop, there wer"
+        },
+        {
+          "id": "svamp_0086",
+          "correct": false,
+          "extracted": "6",
+          "ground_truth": "1",
+          "output_preview": "\nThe problem asks us to find out how many more storks than the number of birds. We start with 3 birds. Then 2 more storks joined them. So, we have a total of 3 birds and storks are there? We start wit"
+        },
+        {
+          "id": "svamp_0087",
+          "correct": true,
+          "extracted": "68",
+          "ground_truth": "68",
+          "output_preview": ". The number of people is 142. The number of people is 142. The number of people is 142 people. The number of people is 14 people. The number of people is 142. The number of people can the wheel hold?"
+        },
+        {
+          "id": "svamp_0088",
+          "correct": false,
+          "extracted": "3734",
+          "ground_truth": "153",
+          "output_preview": "\nThe number of sacks of oranges is $74$ sacks of oranges are harvested. The number of sacks of oranges are harvested. The number of sacks of oranges are harvested in a day. The number of sacks of oran"
+        },
+        {
+          "id": "svamp_0089",
+          "correct": true,
+          "extracted": "90",
+          "ground_truth": "90",
+          "output_preview": ". The problem involves finding the difference between the price of the two numbers in the form of the difference of the price of the difference of the price of the difference of the price of the price"
+        },
+        {
+          "id": "svamp_0090",
+          "correct": false,
+          "extracted": "260",
+          "ground_truth": "28",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nThe problem tells us that the total amount of wax needed is 49 g, and the amount of wax already available is 260 g. We can find the amount of wax that is still needed by subtrac"
+        },
+        {
+          "id": "svamp_0091",
+          "correct": false,
+          "extracted": "63",
+          "ground_truth": "6",
+          "output_preview": "\nLet's denote the number of books he sold as $x$. He sold $x$$. He had 21 books and then bought 42 books. So he had 42 books. So he sold $21+42 = 63 did he sell. The answer is: $63$.\nThe answer is: $6"
+        },
+        {
+          "id": "svamp_0092",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": ". The number of kids she played tag on monday. The number of kids she played tag on tuesday. The number of kids she played tag on tuesday. To find the number of kids she played tag on tuesday than on "
+        },
+        {
+          "id": "svamp_0093",
+          "correct": false,
+          "extracted": "3",
+          "ground_truth": "10",
+          "output_preview": ". The total number of red peaches is 65. The total number of green peaches is 100 peaches in total. The total number of red peaches is 65. The total number of green peaches are there in each basket? T"
+        },
+        {
+          "id": "svamp_0094",
+          "correct": false,
+          "extracted": "14",
+          "ground_truth": "2",
+          "output_preview": "\nLet's solve this problem by setting up an equation. Let's call the number of cookies in each bag. Let's call the number of cookies in each bag. If you had 1 cookies in total, and each bag, we can we "
+        },
+        {
+          "id": "svamp_0095",
+          "correct": true,
+          "extracted": "95",
+          "ground_truth": "95",
+          "output_preview": ". The number of invitations she bought is the total number of invitations she bought is the total number of invitations she bought is the invitations she bought 6 friends. She bought 14 invitations in"
+        },
+        {
+          "id": "svamp_0096",
+          "correct": true,
+          "extracted": "15",
+          "ground_truth": "15",
+          "output_preview": "\nThe baker made 155 cakes. He sold 100 of them. How many cakes would he have left over? The baker made 155 of them. He made 155 cakes would have left. To find out how many cakes would baker still have"
+        },
+        {
+          "id": "svamp_0097",
+          "correct": true,
+          "extracted": "39",
+          "ground_truth": "39",
+          "output_preview": "\nTo find the difference between the number of diet soda and regular soda. The grocery store had 610 bottles of regular soda and 100000000000000000000000000\n\nThe problem asks us to find the difference "
+        },
+        {
+          "id": "svamp_0098",
+          "correct": false,
+          "extracted": "26",
+          "ground_truth": "98",
+          "output_preview": "\nTo find out how many more bottles of regular soda than diet soda. The number of regular soda bottles is more than diet soda bottles. The number of regular soda bottles is more than diet soda? To find"
+        },
+        {
+          "id": "svamp_0099",
+          "correct": true,
+          "extracted": "63",
+          "ground_truth": "63",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nRyan spends 4 hours on learning English every day for 7 days, so the total number of hours he spends on English is $4 \\times 7 = 28$.\nSimilarly, Ryan spends 5 hours on learning "
+        }
+      ]
+    },
+    "gsm8k": {
+      "n_problems": 100,
+      "accuracy": 0.48,
+      "extraction_rate": 0.98,
+      "boxed_rate": 0.86,
+      "per_problem": [
+        {
+          "id": "gsm8k_0000",
+          "correct": true,
+          "extracted": "18",
+          "ground_truth": "18",
+          "output_preview": "'s ducks are 16 ducks. The number of the ducks are 16 ducks. The number of the ducks are 16 ducks. The number of the ducks are 16 ducks. The number of the ducks are 16 ducks. The number of the ducks a"
+        },
+        {
+          "id": "gsm8k_0001",
+          "correct": true,
+          "extracted": "3",
+          "ground_truth": "3",
+          "output_preview": "\nThe problem states that a robe takes 2 bolts of blue fiber and 1/2 of white fiber. 1/3 of blue fiber and 1/3 of white fiber? The problem is asking for the total number of bolts. The problem states th"
+        },
+        {
+          "id": "gsm8k_0002",
+          "correct": false,
+          "extracted": "245000",
+          "ground_truth": "70000",
+          "output_preview": "'s house is worth $150\\% of the original price.  He sells it for $150% of the original price.  He sells it for $15,000. 150% of the original price.  He sells it for $150% of the original price. 150% o"
+        },
+        {
+          "id": "gsm8k_0003",
+          "correct": false,
+          "extracted": "180",
+          "ground_truth": "540",
+          "output_preview": "\nTo find the total number of meters he runs in a week. He runs 3 sprints. Each sprint is 60 meters. He does this for 4 times a week? To find the total number of meters does he run in a week? To find t"
+        },
+        {
+          "id": "gsm8k_0004",
+          "correct": true,
+          "extracted": "20",
+          "ground_truth": "20",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nWendi feeds each chicken 3 cups of feed per day, and she has 20 chickens. So, the total amount of feed she needs to give her chickens in a day is $3 \\times 20 ="
+        },
+        {
+          "id": "gsm8k_0005",
+          "correct": false,
+          "extracted": "5",
+          "ground_truth": "64",
+          "output_preview": "\nThe cost of the glasses of glasses is $5$ The first 5 glasses costs $5 \\times 5$ glasses. The first 5 glasses. The first 5 glasses costs $5. The second 5 glasses costs $5. The first 5 glasses. The th"
+        },
+        {
+          "id": "gsm8k_0006",
+          "correct": true,
+          "extracted": "260",
+          "ground_truth": "260",
+          "output_preview": " has 20 sheep. If Seattle has 20 sheep. How many sheep does Toulouse have? If Toulouse has 20 sheep. If Toulouse has 20 sheep? If Seattle has 20 sheep have if Toulouse has 20 sheep? First, we know tha"
+        },
+        {
+          "id": "gsm8k_0007",
+          "correct": false,
+          "extracted": "120",
+          "ground_truth": "160",
+          "output_preview": "'s speed is 2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\n(first part: The total download time without the restart is the time it takes to download 200 GB a"
+        },
+        {
+          "id": "gsm8k_0008",
+          "correct": false,
+          "extracted": "280",
+          "ground_truth": "45",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nJohn drives for 3 hours at a speed of 60 mph, so he covers a distance of $3 \\times 60 = 180$ miles.\nThen he turns around and drives for 2 hours at a speed of 30 mph, so he cover"
+        },
+        {
+          "id": "gsm8k_0009",
+          "correct": true,
+          "extracted": "460",
+          "ground_truth": "460",
+          "output_preview": " is the same as the problem. The problem is: If she worked 40 hours and 10 hours is 10 hours is $10 hours is $10 hours is $10.00 hours is $10 hours is $10.0 hours is $10 hours is $10 hours, how much i"
+        },
+        {
+          "id": "gsm8k_0010",
+          "correct": true,
+          "extracted": "366",
+          "ground_truth": "366",
+          "output_preview": ". The number of downloads in the second month was 120. The number of downloads in the third month was 120. The number of downloads in the second month was 120. The number of downloads in the first mon"
+        },
+        {
+          "id": "gsm8k_0011",
+          "correct": true,
+          "extracted": "694",
+          "ground_truth": "694",
+          "output_preview": "\nThe cost of the donuts is $3 \\times of the mini cupcakes is $20$ of the donuts. The mini cupcakes. She bought 3 dozen donuts. She bought 2 dozen mini cupcakes. She bought 3 dozen donuts mini cupcakes"
+        },
+        {
+          "id": "gsm8k_0012",
+          "correct": false,
+          "extracted": "-82.5",
+          "ground_truth": "13",
+          "output_preview": ". The tree will grow to $1000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nTo solve this problem, we need to set up an equation that represents the net profit of the "
+        },
+        {
+          "id": "gsm8k_0013",
+          "correct": false,
+          "extracted": "24",
+          "ground_truth": "18",
+          "output_preview": "'s total of vacuum cleaners. She sold 10 vacuum cleaners. She sold 10 vacuum cleaners. She sold 10 vacuum cleaner. She sold 10 vacuum cleaners at the green house. She sold 10 vacuum cleaners at the bl"
+        },
+        {
+          "id": "gsm8k_0014",
+          "correct": true,
+          "extracted": "60",
+          "ground_truth": "60",
+          "output_preview": "\nThe number of students enrolled in contemporary dance is 15. The number of students enrolled in contemporary dance is 15. The number of students enrolled in contemporary dance is 15. The number of st"
+        },
+        {
+          "id": "gsm8k_0015",
+          "correct": false,
+          "extracted": "3096",
+          "ground_truth": "125",
+          "output_preview": " is the same as the jewelry store. The jewelry store is $50\\%$50\\%$50\\%$50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\\%50\n\nTo maximize profit, the merchant sho"
+        },
+        {
+          "id": "gsm8k_0016",
+          "correct": false,
+          "extracted": "4800",
+          "ground_truth": "230",
+          "output_preview": "'s speed is 60 miles per hour. The first train travels at a speed of 60 miles per hour. The first train at a speed of 60 miles per hour. The second train at a speed of 60 miles per hour. The first tra"
+        },
+        {
+          "id": "gsm8k_0017",
+          "correct": true,
+          "extracted": "57500",
+          "ground_truth": "57500",
+          "output_preview": "\nThe problem involves calculating the total amount she earns $20$200000000000000000000000000000000000000000000000000000000000000000\n\nTo solve this problem, we need to calculate Jill's annual salary by"
+        },
+        {
+          "id": "gsm8k_0018",
+          "correct": false,
+          "extracted": null,
+          "ground_truth": "7",
+          "output_preview": "\nTo find out how many eggs she needs to figure out how many eggs will she need to figure out how many eggs will she need to figure out how many eggs will she need to figure out how many eggs will she "
+        },
+        {
+          "id": "gsm8k_0019",
+          "correct": true,
+          "extracted": "6",
+          "ground_truth": "6",
+          "output_preview": "\ufffd\n\n\ufffd\n\nMarissa has already walked 4 miles in the first hour and 2 miles in the next hour, so she has walked a total of $4 + 2 = 6$ miles in the first two hours.\nShe still has 12 - 6 = 6 miles left to w"
+        },
+        {
+          "id": "gsm8k_0020",
+          "correct": false,
+          "extracted": "10.5",
+          "ground_truth": "15",
+          "output_preview": " of the orange drink. The orange drink is 10.50% of the orange drink. The orange drink. The orange drink. The orange drink. The orange drink. The orange drink. The orange drink. The orange drink. The "
+        },
+        {
+          "id": "gsm8k_0021",
+          "correct": false,
+          "extracted": "23",
+          "ground_truth": "14",
+          "output_preview": "'s age is 12 years. The problem states that Raymond was born 12 years ago. If we know that Samantha was born 12 years after he was born. If we know that Raymond was born 12, then we can calculate the "
+        },
+        {
+          "id": "gsm8k_0022",
+          "correct": false,
+          "extracted": "3",
+          "ground_truth": "7",
+          "output_preview": "'s first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The first 3. The fi"
+        },
+        {
+          "id": "gsm8k_0023",
+          "correct": true,
+          "extracted": "8",
+          "ground_truth": "8",
+          "output_preview": "user\nThe candle will be 1: The candle will be 1: 1: The candle will be 1: 1: 1: 1: 1: 1: 1: 1: 1:00 PM to 5:00 PM? First, we need to find out how many hours the candle burns. From 1:00 PM to 5:00 PM i"
+        },
+        {
+          "id": "gsm8k_0024",
+          "correct": true,
+          "extracted": "26",
+          "ground_truth": "26",
+          "output_preview": "\nThe problem states that Kyle bought the book for $19.50000000000000000000000000000000000000000000000\n\nTo solve this problem, we need to find the original price of the book. We know that Kyle bought t"
+        },
+        {
+          "id": "gsm8k_0025",
+          "correct": false,
+          "extracted": "8.5",
+          "ground_truth": "2",
+          "output_preview": ". The cost of the chicken meal is $12. The total cost of the meal is $12. How much pizza and 12.5. How much did each pack of $1.5. How much did each box of $10? The total cost of the pizza is $10. The"
+        },
+        {
+          "id": "gsm8k_0026",
+          "correct": false,
+          "extracted": "247.5",
+          "ground_truth": "243",
+          "output_preview": "\ufffd\n\n\ufffd\n\nMishka bought 3 pairs of shorts, and each pair costs $16.50, so the total cost of the shorts is $16.50 \\times 3 = $53.50.\nShe also bought 3 pairs of pants, and each pair costs $22.50, so the tot"
+        },
+        {
+          "id": "gsm8k_0027",
+          "correct": false,
+          "extracted": "240",
+          "ground_truth": "16",
+          "output_preview": "\nThe number of ice cream cones costs $150$.\nFirst, we need to find the number of ice cream cones every night for 30 days. Each cartons of ice cream for $12$ servings. 150. Each carton of ice cream cos"
+        },
+        {
+          "id": "gsm8k_0028",
+          "correct": false,
+          "extracted": "40",
+          "ground_truth": "25",
+          "output_preview": ". The problem asks us to find out how many miles Henry biked for the answer. To find out how many miles he biked, we need to subtract the 20 miles and then 15 miles. To find out how many miles he bike"
+        },
+        {
+          "id": "gsm8k_0029",
+          "correct": false,
+          "extracted": "94",
+          "ground_truth": "104",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nThe cost of the two pairs of high heels together is $33 + 2(33) = 33 + 66 = 99$ dollars.\nThe cost of the boots is the total cost of the high heels minus the cost of the two pair"
+        },
+        {
+          "id": "gsm8k_0030",
+          "correct": true,
+          "extracted": "109",
+          "ground_truth": "109",
+          "output_preview": "'s age is 10 years. The sum of their ages is 10 years. The sum of their ages is 10 years. How old is Darrell? Let's denote Darrell's age as $D$ and his age 10 years from now. Let's start by setting up"
+        },
+        {
+          "id": "gsm8k_0031",
+          "correct": true,
+          "extracted": "80",
+          "ground_truth": "80",
+          "output_preview": "\nThe first one, and then adds up to the total. The first one is 80. The second one is 80. The third one is 80. The third one is. The first one is 80. The second one is 80. The first one. The first one"
+        },
+        {
+          "id": "gsm8k_0032",
+          "correct": true,
+          "extracted": "35",
+          "ground_truth": "35",
+          "output_preview": "\nJohn takes care of 10 dogs.  He takes care of 10 dogs.  He takes care of 10 dogs.  He walks them 2 hours a day.  He walks them 10 dogs? To find out how many hours John spend taking care of them, we n"
+        },
+        {
+          "id": "gsm8k_0033",
+          "correct": true,
+          "extracted": "70",
+          "ground_truth": "70",
+          "output_preview": "\nLet's call the number of silver coins as $s. Let's call the number of silver coins as $s. Let's call the number of silver coins as many as she has. Let's call the number of silver coins does she have"
+        },
+        {
+          "id": "gsm8k_0034",
+          "correct": true,
+          "extracted": "23",
+          "ground_truth": "23",
+          "output_preview": ". She has 20. If Raymond has 40. If Raymond has 40, then Aaron has 20. If Raymond has 40, then Siobah. If Siobah has 40, then Aaron has 20. If Raymond has 40, then Aaron has 20. If Raymond has 40, the"
+        },
+        {
+          "id": "gsm8k_0035",
+          "correct": false,
+          "extracted": "29",
+          "ground_truth": "9",
+          "output_preview": "\nThe problem asks for the total number of points he scored. To find the total points he scored, we need to find the total points he scored.  He scored 40 minutes, he scored 4 points.  In the next 20 m"
+        },
+        {
+          "id": "gsm8k_0036",
+          "correct": true,
+          "extracted": "75",
+          "ground_truth": "75",
+          "output_preview": "\nThe cost per yogurt is $2$.\nThe cost per yogurt is $2$.\nThe cost per yogurt is $2$ for $2$.\nThe cost per yogurt is $2$.\nTo find the cost per yogurt, we first need to find the cost per yogurt in 30 da"
+        },
+        {
+          "id": "gsm8k_0037",
+          "correct": false,
+          "extracted": "195",
+          "ground_truth": "2",
+          "output_preview": ". He sells them for $1300. He makes a total of $1300. He makes $1300. He makes $1300. He has $1300. He makes $1300. He makes $1300. He makes $10. He makes $130. He has $130. He has $130. He sells 13 l"
+        },
+        {
+          "id": "gsm8k_0038",
+          "correct": true,
+          "extracted": "10",
+          "ground_truth": "10",
+          "output_preview": ". John runs 10 miles per hour. John runs 10 miles per hour. John runs 60 miles per hour. John runs 10 miles per hour. John runs 10 miles per hour. John runs 3 hours per hour. John runs 10 miles per ho"
+        },
+        {
+          "id": "gsm8k_0039",
+          "correct": true,
+          "extracted": "18",
+          "ground_truth": "18",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nLet's denote the speed at which Dana can walk as $w$ miles per hour. Then, the speed at which she can run is $4w$ miles per hour, and the speed at which she can skip is $\\frac{1"
+        },
+        {
+          "id": "gsm8k_0040",
+          "correct": true,
+          "extracted": "8",
+          "ground_truth": "8",
+          "output_preview": " is 12 years old. The problem states that Suzy's iPhone is 12 years old. If Suzy's iPhone is 12 years old. If Suzy's iPhone is 12 years old, how old is Suzy's iPhone? Let's break down the problem step"
+        },
+        {
+          "id": "gsm8k_0041",
+          "correct": true,
+          "extracted": "200",
+          "ground_truth": "200",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nIf Polly could throw the javelin 400 feet when not holding the gemstone, then with the gemstone, she could throw it 3 times that distance, which is $3 \\times 40"
+        },
+        {
+          "id": "gsm8k_0042",
+          "correct": true,
+          "extracted": "26",
+          "ground_truth": "26",
+          "output_preview": ". The total number of pie slices is the number of pie slices is the number of pie slices. The number of pie slices is the number of pie slices. Each pie slice was 5 apple pies into 8 slices. Each pie "
+        },
+        {
+          "id": "gsm8k_0043",
+          "correct": false,
+          "extracted": "240",
+          "ground_truth": "48",
+          "output_preview": "ize the number of calories per serving. The answer is 125000000000000000000000000000000000000000000000000000000000000000000000\n\nFirst, we need to find out how many calories are in each serving of chip"
+        },
+        {
+          "id": "gsm8k_0044",
+          "correct": true,
+          "extracted": "20",
+          "ground_truth": "20",
+          "output_preview": "'s\nThe cost of the candles is $100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nThe answer: The cost of the beeswax is $10.00 per pound, and Charlie can make"
+        },
+        {
+          "id": "gsm8k_0045",
+          "correct": false,
+          "extracted": "62.4",
+          "ground_truth": "104",
+          "output_preview": " day. On Monday, she spent 12 hours on Monday. On Tuesday, she spent 12 hours on Tuesday. On Wednesday, she spent 12 hours. On Thursday, she spent 12 hours. On Friday, she spent 12 hours. On Saturday,"
+        },
+        {
+          "id": "gsm8k_0046",
+          "correct": true,
+          "extracted": "163",
+          "ground_truth": "163",
+          "output_preview": "\nLet's denote the number of post-it-its in the package that she bought as $x$.  She had 100 post-it notes in the morning. 1000. 100000000000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "id": "gsm8k_0047",
+          "correct": false,
+          "extracted": "1600",
+          "ground_truth": "800",
+          "output_preview": "\nJohn buys 10 blue ties. He buys 10 blue ties. He buys 10 blue ties. He buys 10 blue ties. He buys 10 blue ties. He buys 10 blue ties. How much did he buy? First, we need to find out how much did John"
+        },
+        {
+          "id": "gsm8k_0048",
+          "correct": false,
+          "extracted": "48",
+          "ground_truth": "8",
+          "output_preview": "\nTo find the number of pieces of wire, we first need to convert the length of wire into inches. There are 4 feet long wire, and each piece of wire 4 feet long, and each of wire 4 inches long? To conve"
+        },
+        {
+          "id": "gsm8k_0049",
+          "correct": true,
+          "extracted": "30",
+          "ground_truth": "30",
+          "output_preview": ". The total number of units in the building is 15. The total number of units is 15. The number of units is 15. The number of units is 15. The number of units is 15. The number of units in the building"
+        },
+        {
+          "id": "gsm8k_0050",
+          "correct": false,
+          "extracted": "420",
+          "ground_truth": "294",
+          "output_preview": ". He has 1200 chickens, and each chicken lays 3 eggs. He has 120 chickens. Each chicken lays 3 eggs. He has 120 chickens. Each dozen? He sells them in a week does he make? First, we need to find out h"
+        },
+        {
+          "id": "gsm8k_0051",
+          "correct": false,
+          "extracted": "4",
+          "ground_truth": "5",
+          "output_preview": "'s speed is 10 miles per hour. The problem states that he is sailing at 10 miles per hour. 10 miles per hour. 10 miles per hour. 10 miles per hour.  He is sailing at 10 miles per hour.  He is the tota"
+        },
+        {
+          "id": "gsm8k_0052",
+          "correct": false,
+          "extracted": "25",
+          "ground_truth": "15",
+          "output_preview": "'s weight is 15 pounds. He has 10 pounds of his comic books weighs 10 pounds. He has 10 pounds. He has 10 pounds of his comic books. He has 10 pounds. He has 10 pounds. He has 1/2 pound each. How many"
+        },
+        {
+          "id": "gsm8k_0053",
+          "correct": true,
+          "extracted": "40",
+          "ground_truth": "40",
+          "output_preview": "\ufffd\n\n\ufffd\n\nOn Thursday, the mechanic repaired 6 truck tires at a rate of $60 each, so the revenue from truck tires is $60 \\times 6 = $360.\nThe mechanic also repaired 4 car tires at a rate of $40 each, so t"
+        },
+        {
+          "id": "gsm8k_0054",
+          "correct": false,
+          "extracted": "60",
+          "ground_truth": "40",
+          "output_preview": ". The first cat is 3 times the number of the number of kittens. The second cat has 12 kittens. The first cat. The second cat has 12. The third cat has 12. The first cat has 12. The second cat has 12 h"
+        },
+        {
+          "id": "gsm8k_0055",
+          "correct": false,
+          "extracted": "15",
+          "ground_truth": "14",
+          "output_preview": " $30$.\nJean has 30. She eats 30. She eats 30. She eats 30. She has 30. She has 30. She has 30. She can fill 30. She has 30. She can fill 30 can she fill? To find out how many bags Jean can fill, we ne"
+        },
+        {
+          "id": "gsm8k_0056",
+          "correct": false,
+          "extracted": "11",
+          "ground_truth": "3",
+          "output_preview": "\nThe cost of one movie ticket is $7. The cost of one movie ticket is $7. The cost of one movie ticket is $7. He has to the movie ticket for $7. He has to the movie ticket ticket for $7? He can go to t"
+        },
+        {
+          "id": "gsm8k_0057",
+          "correct": false,
+          "extracted": "8",
+          "ground_truth": "83",
+          "output_preview": " truck is 150000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nFirst, we need to find the weight of the driver and the boxes. We know that the combined wei"
+        },
+        {
+          "id": "gsm8k_0058",
+          "correct": false,
+          "extracted": "33",
+          "ground_truth": "57",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nFirst, we need to find out the total amount Stephen paid after the delivery fee and tip. The delivery fee is $3.00 and the tip is $4.00, so the total amount pai"
+        },
+        {
+          "id": "gsm8k_0059",
+          "correct": true,
+          "extracted": "187",
+          "ground_truth": "187",
+          "output_preview": "\nTo find the total number of raspberries, we need to add the number of clusters and the number of individual raspberries. Each cluster has 20 raspberries. So, the total number of raspberries is $6 \\ti"
+        },
+        {
+          "id": "gsm8k_0060",
+          "correct": false,
+          "extracted": "8",
+          "ground_truth": "17",
+          "output_preview": "\nThe number of good oranges is 10. The number of bad oranges is 10. The number of bad oranges is 10. The number of good oranges is 10. The number of bad oranges is 10. The number of good oranges are i"
+        },
+        {
+          "id": "gsm8k_0061",
+          "correct": true,
+          "extracted": "1430",
+          "ground_truth": "1430",
+          "output_preview": "'s total cost is $5000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nThe first step is to add up the cost of the material and the cost of the jeweler to construct the bro"
+        },
+        {
+          "id": "gsm8k_0062",
+          "correct": false,
+          "extracted": "1050000",
+          "ground_truth": "25000",
+          "output_preview": " $50,00000000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nFirst, we need to calculate the total amount of pension Marcy will receive after 40 years. Since she gets $"
+        },
+        {
+          "id": "gsm8k_0063",
+          "correct": true,
+          "extracted": "1596",
+          "ground_truth": "1596",
+          "output_preview": "\nThe streaming service costs $1400000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nTo solve this problem, we need to calculate the total amount Aleena had paid for th"
+        },
+        {
+          "id": "gsm8k_0064",
+          "correct": true,
+          "extracted": "300",
+          "ground_truth": "300",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nIf Sophia drove 100 miles in 4 gallons of gas, then the miles per gallon (mpg) she can drive is $100/4 = 25$.\nIf her tank holds 12 gallons of gas, then the total number of miles"
+        },
+        {
+          "id": "gsm8k_0065",
+          "correct": false,
+          "extracted": "16",
+          "ground_truth": "36",
+          "output_preview": "\nJim spends 2 hours each day for 4 weeks. The problem is 4 weeks. Jim spends 2 hours each day. He spends 2 hours each day. He spends 2 hours each day. He spends 2 times a week? The problem asks for th"
+        },
+        {
+          "id": "gsm8k_0066",
+          "correct": false,
+          "extracted": "40",
+          "ground_truth": "48",
+          "output_preview": "'s basketball team. The number of players is 120. The number of players is 10 girls' basketball teams. The number of players is 120 players. The number of coaches. The number of coaches is 120 players"
+        },
+        {
+          "id": "gsm8k_0067",
+          "correct": false,
+          "extracted": null,
+          "ground_truth": "595",
+          "output_preview": " gems. The treasure chest. The treasure chest. The treasure chest. The treasure chest. The treasure chest. The treasure chest. The treasure chest. The treasure chest. The treasure chest. The treasure "
+        },
+        {
+          "id": "gsm8k_0068",
+          "correct": true,
+          "extracted": "36",
+          "ground_truth": "36",
+          "output_preview": "\nLet's denote the number of girls as $g$. Then, the number of boys is $2$ girls at the number of teachers, and the number of teachers is 100 girls, how many teachers are there? Let's denote the number"
+        },
+        {
+          "id": "gsm8k_0069",
+          "correct": true,
+          "extracted": "60",
+          "ground_truth": "60",
+          "output_preview": "\nThe problem is asking for the initial amount of money. Let's call this initial amount $x$. She receives $5$ $5$ and adds it to her initial amount of $5. She then spends $5. She has $130. So, the init"
+        },
+        {
+          "id": "gsm8k_0070",
+          "correct": false,
+          "extracted": "2925",
+          "ground_truth": "7425",
+          "output_preview": "'s salary is $10000000000000000000000000000000000000000000000000000000000000000000000\n\nTo solve this problem, we first need to find out how many classes Judy teaches in a week. She teaches 5 dance cla"
+        },
+        {
+          "id": "gsm8k_0071",
+          "correct": true,
+          "extracted": "60",
+          "ground_truth": "60",
+          "output_preview": ". The first recipe requires 100. The first recipe requires 20000. The first recipe requires 2000. The second recipe requires 2000. The number of instructions in the first recipe? The first recipe requ"
+        },
+        {
+          "id": "gsm8k_0072",
+          "correct": true,
+          "extracted": "221",
+          "ground_truth": "221",
+          "output_preview": ". The question asks us to find out how much money he will raise. To find out how much money he will raise, we need to calculate the total amount of money. To find out how much money he will raise, we "
+        },
+        {
+          "id": "gsm8k_0073",
+          "correct": false,
+          "extracted": "266.67",
+          "ground_truth": "255",
+          "output_preview": "\nThe total cost of the five cell phones is $15000000000000000000000000000000000000000000000000000000\n\nTo solve this problem, we first need to find the total cost of the five cell phones. Since each ce"
+        },
+        {
+          "id": "gsm8k_0074",
+          "correct": false,
+          "extracted": "85.35",
+          "ground_truth": "88",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nTo find out how much Artie will make, we need to multiply the number of pots sold for each type of flower by the price per pot and then add up the total.\nFor the marigolds, he s"
+        },
+        {
+          "id": "gsm8k_0075",
+          "correct": false,
+          "extracted": "7.5",
+          "ground_truth": "60",
+          "output_preview": "\nThe top level has a square root of 16. The top level has a square root of 16. He builds a sandcastle and then builds a sandcastle has a square root of 16. He builds a sandcastle. If the top level has"
+        },
+        {
+          "id": "gsm8k_0076",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": "'s dog food. She will feed the puppy for the first 12 months. The puppy will eat 12 months. The puppy will eat 12 months, the puppy will eat 12 months. The puppy will eat 12 months. The puppy will eat"
+        },
+        {
+          "id": "gsm8k_0077",
+          "correct": true,
+          "extracted": "100",
+          "ground_truth": "100",
+          "output_preview": ". The problem involves a system of equations: \\[Randy does 200 pounds of laundry, and David does 10000000000 pounds of laundry as David. If David's laundry if David does 100000000 pounds of laundry. F"
+        },
+        {
+          "id": "gsm8k_0078",
+          "correct": true,
+          "extracted": "6",
+          "ground_truth": "6",
+          "output_preview": "\nThe cost of buying 18 flowers at the better price. The cost of buying 18 flowers at the better price. He wants to buy 18 flowers at the better price. To find out how much money he saves by buying 18 "
+        },
+        {
+          "id": "gsm8k_0079",
+          "correct": true,
+          "extracted": "70",
+          "ground_truth": "70",
+          "output_preview": "'s dog costs $100% of the original price. The dog's original price is $10000000000000000000000000000000000000000000000000\n\nThe problem states that the groomer offers a 30% discount for being a new cus"
+        },
+        {
+          "id": "gsm8k_0080",
+          "correct": false,
+          "extracted": "0",
+          "ground_truth": "10",
+          "output_preview": "\nTo find the total amount of water in liters. The two girls each got 1/6 of the total amount of water. The total amount of water. The total amount of water? The total amount of water? The total amount"
+        },
+        {
+          "id": "gsm8k_0081",
+          "correct": true,
+          "extracted": "17",
+          "ground_truth": "17",
+          "output_preview": ". He started with 10 stickers. He bought 210 stickers. He had 10 stickers. He had 10 stickers. He had 10. He had 10 stickers. He had 10. He had 10 stickers to his friend. He had 10 stickers to decorat"
+        },
+        {
+          "id": "gsm8k_0082",
+          "correct": true,
+          "extracted": "623",
+          "ground_truth": "623",
+          "output_preview": " of the two people. The problem involves basic arithmetic operations. The problem is: Grace is 120.50 pounds more than Grace. How much does Alex weigh? The problem asks us to find the total weight of "
+        },
+        {
+          "id": "gsm8k_0083",
+          "correct": true,
+          "extracted": "600",
+          "ground_truth": "600",
+          "output_preview": "\nTo find the total number of thorns, we need to multiply the number of rose bushes by the number of roses in each bush, and each rose bush has 8 petals. Each rose bush has 2 petals. So, the total numb"
+        },
+        {
+          "id": "gsm8k_0084",
+          "correct": true,
+          "extracted": "15",
+          "ground_truth": "15",
+          "output_preview": "\nLet's call the number of games they lost $Losing games is the number of games they lost. Let's call the number of games they lost. Let's call the number of games they lost? Let's call the number of g"
+        },
+        {
+          "id": "gsm8k_0085",
+          "correct": false,
+          "extracted": "10",
+          "ground_truth": "44",
+          "output_preview": ". He sews 10 blocks. Each year, he sews 10 blocks. He sews 10 blocks. Each year, he sews 10 blocks. He sews 10 years, he sews 10 years, he sews 10 years. He has been. Each year, he sews 10 years old. "
+        },
+        {
+          "id": "gsm8k_0086",
+          "correct": true,
+          "extracted": "22",
+          "ground_truth": "22",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nThe first time the alarm rang for 4 times.\nThe second time it rang for 3 times as long as the first time, so it rang for $3 \\times 4 = 12$ times.\nThe third time"
+        },
+        {
+          "id": "gsm8k_0087",
+          "correct": false,
+          "extracted": "1.1",
+          "ground_truth": "9360",
+          "output_preview": "'s salary is $6000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nThe initial salary of each employee is $600. The company increases the salary by 10% ev"
+        },
+        {
+          "id": "gsm8k_0088",
+          "correct": false,
+          "extracted": "80000",
+          "ground_truth": "8000",
+          "output_preview": "'s record was 1000000000000000000000000000000000000000000000000000000000\n\nLet's call the number of copies Harald sold $h$. Then, since Marilyn's record sold 10 times as many copies as Harald's, she so"
+        },
+        {
+          "id": "gsm8k_0089",
+          "correct": false,
+          "extracted": "32",
+          "ground_truth": "24",
+          "output_preview": ". First, we need to find out how many guests she can invite. If she invites 16 guests. She needs to buy 16 gift bags of chocolate. Each gift bag costs $20.00. If she buys 16 guests and each guest will"
+        },
+        {
+          "id": "gsm8k_0090",
+          "correct": true,
+          "extracted": "225",
+          "ground_truth": "225",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nIf an adult eats 10 lbs of potato salad, and there are 20 adults, then the total amount of potato salad needed for the adults is $10 \\times 20 = 200$ lbs.\nIf a child eats half a"
+        },
+        {
+          "id": "gsm8k_0091",
+          "correct": false,
+          "extracted": "44",
+          "ground_truth": "28",
+          "output_preview": ". Let's solve this problem by setting up an equation. Let's denote the number of pets that she has, and she has 4. If we let's number of pets than twice the number of pets, how many pets? Let's denote"
+        },
+        {
+          "id": "gsm8k_0092",
+          "correct": false,
+          "extracted": "-1",
+          "ground_truth": "4",
+          "output_preview": "'s age is 10 years. The problem states that Emily is 10 years old. The problem states that Emily is 10 years old. Emily is 10 years old. Emily is 10 years old. Emily is 10 years old, how old is Emily?"
+        },
+        {
+          "id": "gsm8k_0093",
+          "correct": false,
+          "extracted": "38",
+          "ground_truth": "36",
+          "output_preview": " The original speed of the 400. 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\n(touching\n\n(touching)\n\nLet's say Lee's original speed was $v$ meters pe"
+        },
+        {
+          "id": "gsm8k_0094",
+          "correct": false,
+          "extracted": "180",
+          "ground_truth": "348",
+          "output_preview": " pets. The number of pets is 1200. Let's denote the number of pets as $d, the number of dogs is 120. The number of pets is 120, how many pets in the neighborhood? Let's denote the number of pets as $d"
+        },
+        {
+          "id": "gsm8k_0095",
+          "correct": true,
+          "extracted": "40",
+          "ground_truth": "40",
+          "output_preview": "\nThe number of boys is $200/50000000000000000000000000000000000000000000000000000\n\nFirst, we need to find the number of boys and girls in the Grade 5 students.\nSince 2/5 of the 200 students are boys, "
+        },
+        {
+          "id": "gsm8k_0096",
+          "correct": true,
+          "extracted": "3",
+          "ground_truth": "3",
+          "output_preview": "\nTo find out how many more hours Harry slept than James. The problem asks us to find out how many more hours than James. To find out how many more hours than James, we need to find out how many hours "
+        },
+        {
+          "id": "gsm8k_0097",
+          "correct": false,
+          "extracted": "32",
+          "ground_truth": "12",
+          "output_preview": "'s volume is 32 ounces. If each can of tomatoes, how many tomatoes did she use? Let's denote the number of tomatoes as $x$ ounces of tomatoes. If each can of tomatoes has 32 ounces, and each can of to"
+        },
+        {
+          "id": "gsm8k_0098",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nIn the first 15 minutes, 5 cars exit the traffic jam. So, the number of cars that drove through the traffic jam in the first 15 minutes is 5. The answer is: $5$.\n\nThe answer is "
+        },
+        {
+          "id": "gsm8k_0099",
+          "correct": false,
+          "extracted": "78",
+          "ground_truth": "58",
+          "output_preview": ". The number of potted plants. She has 20 plants. She has 20 plants. She has 20 plants. She has 20 plants. She has 20 plants. She has 20 plants. She has 20 plants. She has 20 plants. She has 20 plants"
+        }
+      ]
+    },
+    "math": {
+      "n_problems": 100,
+      "accuracy": 0.4,
+      "extraction_rate": 0.99,
+      "boxed_rate": 0.8,
+      "per_problem": [
+        {
+          "id": "math_0000",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": "\nThe function $y=\\frac{2}{x^2+3x+4$y=\\frac{x^2+3x+4$ have?\nThe function $y=\\frac{2}{x+3x+4\n\nThe vertical asymptotes of a rational function occur at the values of $x$ that make the denominator equal to"
+        },
+        {
+          "id": "math_0001",
+          "correct": false,
+          "extracted": "224",
+          "ground_truth": "10",
+          "output_preview": "\nThe problem asks us to find the positive difference between $120$ of $120$.\nThe first step is $120\\%$ of $30$ and $130\\%$ of $20$ First, we calculate $120\\%$ of $30$:\n$$120\\% \\text{ of } 30 = 1.2 \\ti"
+        },
+        {
+          "id": "math_0002",
+          "correct": false,
+          "extracted": "14",
+          "ground_truth": "dfrac{9",
+          "output_preview": "\nThe problem is asking us to find the value of $x$ such that $\\lceil{x}$ is the value of $x$ is an integer$ and $x$ is an integer. The ceiling function $\\lceil$ is the value of $x$ in the form of the "
+        },
+        {
+          "id": "math_0003",
+          "correct": false,
+          "extracted": "3",
+          "ground_truth": "i",
+          "output_preview": "\nThe value of the expression $i^5+i^{-25}+(-i^5$.\n\nFirst, we need to understand the powers of $i$. The powers of $i\n\nThe powers of $i$ are periodic with a period of 4. That is, $i^1 = i$, $i^2 = -1$, "
+        },
+        {
+          "id": "math_0004",
+          "correct": true,
+          "extracted": "4",
+          "ground_truth": "4",
+          "output_preview": "\nThe equation $2^8 = 4^y$.\nThe equation $2^8 = 4^y$?\nTo solve the equation $2^8 = 4^y$.\nFirst, we can rewrite $4$ as $2^2$, so the equation $2^8 = 4^y$ becomes $2^8 = (2^2)^y$.\nUsing the property of e"
+        },
+        {
+          "id": "math_0005",
+          "correct": true,
+          "extracted": "402",
+          "ground_truth": "402",
+          "output_preview": " of the sequence 6, 100000000000000000000th term of the sequence 6, 10, 14, 20, ...?\n\nThe common difference of the sequence is 4, because each term is 4 more than the previous term. The formula for th"
+        },
+        {
+          "id": "math_0006",
+          "correct": false,
+          "extracted": "7",
+          "ground_truth": "xin[-27]",
+          "output_preview": "\nFirst, we start by subtracting $10$ We start by subtracting $10$.\nThe inequality $x$ is true? We start by subtracting $10$ from both sides of the inequality. This gives us $x^2$.\nTo solve the inequal"
+        },
+        {
+          "id": "math_0007",
+          "correct": true,
+          "extracted": "7",
+          "ground_truth": "7",
+          "output_preview": "\ufffd\n\n\ufffd\n\nThe formula for compound interest is $A = P(1 + r)^n$, where $A$ is the final amount, $P$ is the principal (initial amount), $r$ is the interest rate, and $n$ is the number of years.\nIn this cas"
+        },
+        {
+          "id": "math_0008",
+          "correct": false,
+          "extracted": "21",
+          "ground_truth": "461415",
+          "output_preview": " are the smallest and largest of the sum of the numbers $a$, $b$, $c$, and $d$ are chosen from the set $\\e$, and $f$ are the sum of the numbers $a, $b, $c$, and $d$ are the sum of the numbers $a$, $b$"
+        },
+        {
+          "id": "math_0009",
+          "correct": false,
+          "extracted": "8",
+          "ground_truth": "-frac{1",
+          "output_preview": "\nTo solve the equation $|5x - 1$.\nThe equation is $|5x - 1$ that is true for the equation $|5x - 1| = |3x + 2$.\n\nFirst, we need to solve the equation $|5x - 1$.\nTo solve the equation $|5x - 1| = |3x +"
+        },
+        {
+          "id": "math_0010",
+          "correct": true,
+          "extracted": "frac{x+2",
+          "ground_truth": "frac{x+2",
+          "output_preview": "\nThe function $h(x)$ is the function $h(x)$ is the function $h(x)$ be the function $h(x)$ is the function $h(x)$ is the function $h(x)$ is the function $h(x)$? The function $h(x)$ is the function $h(x"
+        },
+        {
+          "id": "math_0011",
+          "correct": false,
+          "extracted": "-28",
+          "ground_truth": "-15",
+          "output_preview": "\nFirst, we solve the inequality $|x|+1> $x$ is an integer.\nThe inequality $|x$ is an integer and $x^2-3\\text{ and }x-3\\text{ is an integer.\n\\] The first inequality is $|x|+1>7$. This inequality can be"
+        },
+        {
+          "id": "math_0012",
+          "correct": true,
+          "extracted": "10",
+          "ground_truth": "10",
+          "output_preview": "\nThe distance from the origin to the point $(-8, 6) in the form of a point on the graph of the point $(-8, 6)$ on the graph of the point $(-8, 6) The distance from the origin to a point $(x, y)$ in a "
+        },
+        {
+          "id": "math_0013",
+          "correct": true,
+          "extracted": "8",
+          "ground_truth": "8",
+          "output_preview": "\nThe midpoint of a segment is $\\left(\\frac{1}{2}$.\nThe midpoint of a segment with endpoints $(a line segment are $\\left(1)$ and $(1,16)$.\nThe midpoint of a segment is $\\left(\\frac{1}{2}$.\nThe midpoint"
+        },
+        {
+          "id": "math_0014",
+          "correct": true,
+          "extracted": "75",
+          "ground_truth": "75",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nThe diagonals of a kite are the line segments connecting opposite vertices. In this case, the diagonals are $AC$ and $BD$. We can find the lengths of these diag"
+        },
+        {
+          "id": "math_0015",
+          "correct": false,
+          "extracted": "5.5",
+          "ground_truth": "frac{11",
+          "output_preview": "\nThe function $g(x)$ is defined for all $x$ is the domain of the function $g(x)$ is defined for all $x$ is defined for all $x = \\sqrt{x^2 - 4)^2 + 16}$$\nThe function $g(x)$ is defined for all $x$ in t"
+        },
+        {
+          "id": "math_0016",
+          "correct": true,
+          "extracted": "-25",
+          "ground_truth": "-25",
+          "output_preview": "\nThe value of $f(x)$ is the value of $f(x)$\nThe value of $f(x) be the value of $f(x) &\\text{ if } x<-3, \\\\\nf(x) &\\text{ if } x\\ge -3$.\nThe value of $f(x)$\nTo find $f(-10$.\nTo find $f(-10) We first nee"
+        },
+        {
+          "id": "math_0017",
+          "correct": false,
+          "extracted": "14",
+          "ground_truth": "8",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nFirst, we can simplify the right side of the equation: $\\frac{9}{2\\sqrt{3}} = \\frac{9\\sqrt{3}}{6} = \\frac{3\\sqrt{3}}{2}$.\nSo we have $\\frac{A\\sqrt{B}}{C} = \\frac{3\\sqrt{3}}{2}$."
+        },
+        {
+          "id": "math_0018",
+          "correct": false,
+          "extracted": "10",
+          "ground_truth": "3",
+          "output_preview": "\nLet's break down the problem step by step.\n\nFirst, we know that $10$ treeks. If we let $x$ treeks. We can write this as an equation: $10$ treeks. If we let $x$ treeks, we can write this as an equatio"
+        },
+        {
+          "id": "math_0019",
+          "correct": true,
+          "extracted": "187.5",
+          "ground_truth": "187.5",
+          "output_preview": "\nThe question asks us to find the number of calories per fluid ounce. We know that 8 fluid ounces of Vitamin Water, there are 1200000000000000000000000000000000\n\nThe question is asking us to find the "
+        },
+        {
+          "id": "math_0020",
+          "correct": false,
+          "extracted": "12",
+          "ground_truth": "18",
+          "output_preview": "\nThe roots of the polynomial are $p$ and $q$ are $p$ and $q$.\nThe sum of the polynomial are $p$ and $q$ are $p$ and $q$ are $p$ and $q$ are $p$ and $q$ are $p$ and $q\n\nThe roots of a quadratic equatio"
+        },
+        {
+          "id": "math_0021",
+          "correct": false,
+          "extracted": "20",
+          "ground_truth": "40",
+          "output_preview": "\nThe original price of the stamp is $\\$1.25. The original price of the stamp is $\\$1.25$ for the stamp. How much will he be paid in the original price in the next three years? The original price is $\\"
+        },
+        {
+          "id": "math_0022",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": "\nThe equation is $(17^6$.\nThe equation is $(17^6$.\nThe equation is $(17^6$.\nThe equation is $(17^6$.\nFirst, we can simplify the left side of the equation. We have $17^6 - 17^5 = 17^6 - 17^5 = 17^5(17 "
+        },
+        {
+          "id": "math_0023",
+          "correct": false,
+          "extracted": "7.99",
+          "ground_truth": "8",
+          "output_preview": ". The relationship between the pressure and volume of the gas is $P = kV, where $P$ and $V$ is $P$ gas is 1. If the number of gas. If the gas at 3.67 liter container, what will the pressure be? The re"
+        },
+        {
+          "id": "math_0024",
+          "correct": true,
+          "extracted": "3125",
+          "ground_truth": "3125",
+          "output_preview": "\nThe expression $a^3\\cdot a^2$.\nFirst, we need to calculate $a^3\\cdot a^2$.\nTo evaluate the expression $a^3\\cdot a^2$.\nFirst, we need to calculate $a^3$ and $a^2$ separately.\n$a^3$ means $a$ multiplie"
+        },
+        {
+          "id": "math_0025",
+          "correct": false,
+          "extracted": "0",
+          "ground_truth": "[0infty)",
+          "output_preview": "\nThe function $f(x) = \\sqrt{x^2$ for $x$.\nThe function $f(x) = \\sqrt{x^2}$ for $x$.\nThe function $f(x) = $\\sqrt{x^2}$ is defined for all real numbers $x$.\nThe square root of a number is always nonnega"
+        },
+        {
+          "id": "math_0026",
+          "correct": false,
+          "extracted": "frac{1",
+          "ground_truth": "0.5",
+          "output_preview": "\nThe equation $(2x+5=0$, then the equation $(2x+5=0$, then the equation $2x+5)$ is equal to $0$. First, we expand the left side of the equation: \\[(2x+5)(x-3) = 2x^2 - 6x + 5x - 15 = 2x^2 - x - 15.\\]S"
+        },
+        {
+          "id": "math_0027",
+          "correct": false,
+          "extracted": "173",
+          "ground_truth": "12106",
+          "output_preview": "\nThe equation $x^2$.\nThe equation $x^2$.\nThe equation $x^2$ $x$ such that the equation $x^2$ has two real and rational solutions. The discriminant of the equation $x$.\nThe discriminant of the equation"
+        },
+        {
+          "id": "math_0028",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": "\nThe equation $x^{2} = 0, then find the value of $x^{2}$. The equation $x^{2}$ is $x^{2} = 0$? The equation $x^{2}$? The equation $x^{2} The equation $x^{2}$? The equation $x^{2} The answer: The value"
+        },
+        {
+          "id": "math_0029",
+          "correct": false,
+          "extracted": "19",
+          "ground_truth": "16",
+          "output_preview": ". The solutions of the equation are $x_1$ and $x_2$. The solutions of the equation are $x_1$ and $x_2$.\nThe solutions of the equation are $x_1$ and $x_2$. The solutions of the equation are $x_1$ and $"
+        },
+        {
+          "id": "math_0030",
+          "correct": true,
+          "extracted": "2300",
+          "ground_truth": "2300",
+          "output_preview": " ForCanBeConverted\n\n\ufffd\n\nLet's denote the cost of one pound of feathers as $f$ and the cost of one ounce of gold as $g$. We are given two equations based on the problem:\n\n1) Eight pounds of feathers and"
+        },
+        {
+          "id": "math_0031",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": "\nThe equation of the circle in the form $(x - h + (y - k = 1$$. The equation of the circle in the form $(x - h + (y - k = 1$.\n\nFirst, we complete the square for the $x$ and $y$ terms separately:\n\\begi"
+        },
+        {
+          "id": "math_0032",
+          "correct": false,
+          "extracted": "3",
+          "ground_truth": "105",
+          "output_preview": "\nThe sum of the elements of each subset of the set $\\{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22\n\nThe sum of the elements of each of the 15 two-element subsets of $\\{1,2,3,4,5,6\\}$ is th"
+        },
+        {
+          "id": "math_0033",
+          "correct": false,
+          "extracted": "-26.2",
+          "ground_truth": "-13.5",
+          "output_preview": "\ufffd\n\n\ufffd\n\nFirst, we need to find the equation of the line. We can do this by finding the slope of the line. The slope of a line is given by the formula $\\frac{y_2 - y_1}{x_2 - x_1}$, where $(x_1, y_1)$ an"
+        },
+        {
+          "id": "math_0034",
+          "correct": false,
+          "extracted": "5",
+          "ground_truth": "frac{243",
+          "output_preview": "\nThe common ratio of the sequence is $\\frac{125$. The common ratio of the sequence is $\\frac{125$. The common ratio of the sequence is $\\frac{125}$.\nThe common ratio of the sequence is $\\frac{125. The"
+        },
+        {
+          "id": "math_0035",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": "\nThe equation $9^{18n$.\nThe equation $9^{18n$.\nFirst, we can rewrite $9$ as $3$ and $27$.\nThen, we can rewrite $27$ as $3^3$, so the equation becomes $(3^2)^{18n} = (3^3)^{24}$.\nThis simplifies to $3^"
+        },
+        {
+          "id": "math_0036",
+          "correct": false,
+          "extracted": "-4",
+          "ground_truth": "(-sqrt{3",
+          "output_preview": "\nTo solve the inequality $-4$.\nThe inequality is $-4$.\nFirst, we need to solve the inequality $-4$.\nThe inequality is $-4$.\nWe can start by factoring the left side of the solution as an interval.\nThe "
+        },
+        {
+          "id": "math_0037",
+          "correct": false,
+          "extracted": "13",
+          "ground_truth": "23",
+          "output_preview": "\nThe expression $\\sqrt{2}$.\nFirst, we can rewrite the expression as $\\dfrac{2}$ as $\\sqrt{2}$ in the form $\\sqrt{2}$, we get\n\\[\\sqrt{2} + \\sqrt{2}$, we can simplify the expression as $\\sqrt{2 + \\sqrt{"
+        },
+        {
+          "id": "math_0038",
+          "correct": true,
+          "extracted": "49",
+          "ground_truth": "49",
+          "output_preview": "\nThe equation $x^2 + y^2 = 14. The equation $x^2 + y^2$ be a solution to the equation $x^2 + y^2 = 14$? To find the maximum value of $y$ that $x$ can take? First, we rewrite the equation $x^2 + y^2 = "
+        },
+        {
+          "id": "math_0039",
+          "correct": false,
+          "extracted": "1",
+          "ground_truth": "2x^9-8x^7+9x^6-16x^5-12x^4+9x^3-24x^2",
+          "output_preview": "\nThe given expression is a product of two polynomials. The answer in the form of $ax^6 + bx^3 + 4x^2)$.\n\nThe answer is $2x^6 + 12x^5 + 6x^5 + 12x^4 - 24x^3 + 24x^2 - 16x^5 + 12x^4 - 24x^3 + 12x^2 - 24"
+        },
+        {
+          "id": "math_0040",
+          "correct": false,
+          "extracted": "8",
+          "ground_truth": "(-infty-8)cup(8infty)",
+          "output_preview": "\nThe roots of the equation $x^2+1=0\nThe roots of the equation $x^2+1=0, the roots of the equation $x^2+1=0\nThe roots of the equation $x^2+1\nThe roots of the equation $x^2+1\n\nThe roots of a quadratic e"
+        },
+        {
+          "id": "math_0041",
+          "correct": true,
+          "extracted": "0",
+          "ground_truth": "0",
+          "output_preview": "\nThe point $(a, b) is on the line $y = 3$.\nThe point $(a, b)$ is on the line $y = 3$.\nTo find the value of $b$, we substitute $a$ into the equation $3$.\nTo find the value of $b$.\nFirst, we substitute "
+        },
+        {
+          "id": "math_0042",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": "\nThe equation $|x-1$.\nThe equation $|x-1$ is equal to 7$.\nThe equation $|x-1$ is equal to 7$.\nThe absolute value of $x-1$ is equal to 7. This means that $x-1$ is either 7 or -7. So we have two equatio"
+        },
+        {
+          "id": "math_0043",
+          "correct": true,
+          "extracted": "16",
+          "ground_truth": "16",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nThe revenue is the product of the price and the number of books sold. So the revenue $R$ is given by $R = p(128-4p) = 128p - 4p^2$.\nTo find the price that maxim"
+        },
+        {
+          "id": "math_0044",
+          "correct": false,
+          "extracted": "84",
+          "ground_truth": "frac{1",
+          "output_preview": "\nFirst, we simplify the left side of the equation: \\[\\frac{1\\frac{1\\frac{1\\frac{1\\frac{1\\frac{12\\frac13}$\\frac{1\\frac15$ First, we simplify the left side of the equation: $\\frac{1\\frac16}{w} = \\frac{1"
+        },
+        {
+          "id": "math_0045",
+          "correct": false,
+          "extracted": "9",
+          "ground_truth": "6+9i",
+          "output_preview": "\nThe expression $(1+2i$.\nThe expression $(1+2i$.\nFirst, we distribute the $i$ to both terms in the expression: \\[1+2i \\cdot 6 - 3i = 6 + 12i - 3i.\\] Then, we combine like terms: \\[6 + 12i - 3i = 6 + 9"
+        },
+        {
+          "id": "math_0046",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": "\nThe given equation is $\\frac{a+11$.\nThe given equation is $\\frac{a+11$?\nThe given equation is $\\frac{a+111}$ and $a+11=11}$ and $a+11$.\nFirst, we can start by solving the equation $\\frac{4a+3b}{a-2b}"
+        },
+        {
+          "id": "math_0047",
+          "correct": false,
+          "extracted": "10+10i",
+          "ground_truth": "20",
+          "output_preview": "\nTo simplify the expression $(2-2i$.\nThe answer is $10+10i$.\n\nThe answer is $10+10i$.\nThe answer is $-1$.\nThe answer is $10+10i$. The answer is: $10+10i$.\n\nThe answer is \\boxed{10+10i}. najcz\u0119\u015bcie\nThe"
+        },
+        {
+          "id": "math_0048",
+          "correct": false,
+          "extracted": "14",
+          "ground_truth": "7(x+3)(x-3)",
+          "output_preview": "er\nThe expression $7x^2-3x+14x^2-3x+14x^2-3x+14x$ First, we can factor out the greatest common factor (GCF) from the expression. The GCF of $7x^2$, $-3x$, and $14x$ is $x$. So we can factor out $x$ fr"
+        },
+        {
+          "id": "math_0049",
+          "correct": false,
+          "extracted": "-5",
+          "ground_truth": "y^4-2y^3+7y^2+y-5",
+          "output_preview": ". The sum of $f(y)$ and $g(y)$ is $f(y) + g(y)$. The sum of $f(y)$ and $g(y)$ is $f(y)$. The sum of $f(y)$ and $g(y)$ is $f(y)$.\n\nThe sum of $f(y)$ and $g(y)$.\n\nThe sum of $f(y)$ and coefficients. The"
+        },
+        {
+          "id": "math_0050",
+          "correct": false,
+          "extracted": "8",
+          "ground_truth": "4",
+          "output_preview": "\ufffd\n\n\ufffd\n\nThe largest value of $f(x) - g(x)$ is achieved when the graph of $f(x)$ is above the graph of $g(x)$, and the difference is maximized. From the graphs, we can see that the maximum difference occ"
+        },
+        {
+          "id": "math_0051",
+          "correct": false,
+          "extracted": null,
+          "ground_truth": "0",
+          "output_preview": "\nThe function $f(x)$ is defined as $f(x)$ is defined as $f(x)$ is defined as $f(x)$ is defined as $f(x)$ is defined as $f(x)$ is defined as $f(x)$ is defined as $f(x)$ is defined as $f(x)$ for all $x$"
+        },
+        {
+          "id": "math_0052",
+          "correct": false,
+          "extracted": "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "ground_truth": "12",
+          "output_preview": "\nThe sequence starts with the first term being 10000000000000000000, ~987, ~964, \\ldots$?\nThe given sequence is an arithmetic sequence with the first term being 100000000000000000000000000000000000000"
+        },
+        {
+          "id": "math_0053",
+          "correct": false,
+          "extracted": "2",
+          "ground_truth": "frac{7",
+          "output_preview": "\nThe expression $\\log_2\\sqrt{2}$.\nThe expression $\\log_2\\sqrt{2}$.\nThe value of $\\log_2\\sqrt{2}.\n\nThe expression $\\log_2\\sqrt{2}$ is asking for the exponent to which we must raise 2 to get $\\sqrt{2}$."
+        },
+        {
+          "id": "math_0054",
+          "correct": false,
+          "extracted": "1",
+          "ground_truth": "69",
+          "output_preview": " the price of the tickets is $\\$70$.\nThe park charges $\\$70$.\nThe park charges $\\$70$.\nThe park charges $\\$70$.\nThe park charges $\\$70$, the park charges $\\$70$.\nThe park charges $\\$70$.\nThe park char"
+        },
+        {
+          "id": "math_0055",
+          "correct": false,
+          "extracted": "15",
+          "ground_truth": "5",
+          "output_preview": "\nThe expression $\\log_{\\sqrt8}$ is equivalent to $\\log_{\\sqrt8$.\nThe expression $\\log_{\\sqrt8}$ is equivalent to $\\log_{\\sqrt8\n\nFirst, we simplify the expression inside the logarithm: $64\\sqrt{8} = 64"
+        },
+        {
+          "id": "math_0056",
+          "correct": false,
+          "extracted": "1",
+          "ground_truth": "left(-infty-frac12right)cupleft(-frac12inftyright)",
+          "output_preview": "\nThe function $k(y)$ is defined for all real numbers $y$.\nThe function $k(y)$ is defined for all real numbers $y$ = \\frac{1}{y+1}.$\nThe function $k(y)$ is defined for all real numbers $y$.\nThe functio"
+        },
+        {
+          "id": "math_0057",
+          "correct": false,
+          "extracted": "10",
+          "ground_truth": "frac{2",
+          "output_preview": "\nThe equation $x(x)$\nThe equation $x$ The equation $x$ the form. The equation $x$ from $100$ and $1000$? The equation $x$ the equation $x$ the equation $x$ the equation $x$ the equation $x+100$.\nThe e"
+        },
+        {
+          "id": "math_0058",
+          "correct": true,
+          "extracted": "7",
+          "ground_truth": "7",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nFirst, we need to find the value of $f^{-1}(3)$. From the given information, we know that $f(4)=3$. Therefore, $f^{-1}(3)=4$.\n\nNow we need to find the value of $f^{-1}(f^{-1}(3)"
+        },
+        {
+          "id": "math_0059",
+          "correct": false,
+          "extracted": "18+2i",
+          "ground_truth": "20",
+          "output_preview": "\nThe problem: Simplify $(3-i)(6+2i)$\nThe answer is $\\boxed{18+2i)$\nThe answer is $\\boxed{18+2i}$\n\nThe answer is: $\\boxed{18+2i}$\n\nThe answer is: $\\boxed{18+2i}$\n\nThe answer is: $\\boxed{18+2i}$\n\nThe an"
+        },
+        {
+          "id": "math_0060",
+          "correct": true,
+          "extracted": "7",
+          "ground_truth": "7",
+          "output_preview": "\nThe function $f(x)$ is a quadratic function, and the vertex form of the quadratic function $f(x)$ is the minimum? The vertex of the quadratic function $f(x)$ is the vertex of the quadratic function $"
+        },
+        {
+          "id": "math_0061",
+          "correct": false,
+          "extracted": "9",
+          "ground_truth": "sqrt{x",
+          "output_preview": "\nThe answer is $\\sqrt[3]{x^{\\frac{1}{x^{\\frac{1}$. The answer is $\\sqrt[3]{x^{\\frac{1}{x^{\\frac{1}{x}}}$.\nThe expression is $\\root 3{1} form. The expression is $\\root 3{1}The expression is $\\root 3 \\o"
+        },
+        {
+          "id": "math_0062",
+          "correct": true,
+          "extracted": "78",
+          "ground_truth": "78",
+          "output_preview": "\nThe equation $x(x-1$.\nFirst, we start by multiplying through the equation $x$ to the equation $x$ are $x$.\nWe start by expanding the equation $x$.\nThe equation $x$ is $x$.\nThe equation $x$ is $x$.\nTh"
+        },
+        {
+          "id": "math_0063",
+          "correct": false,
+          "extracted": "4",
+          "ground_truth": "9",
+          "output_preview": "\nThe solutions of the equation $2x^2$ The solutions of the equation $2x^2$ of the solutions of the equation $2x^2$ to the equation $2x + 10 = 0$?\n\nThe solutions of the equation $2x^2 + 13x + 6 = 0$ ar"
+        },
+        {
+          "id": "math_0064",
+          "correct": true,
+          "extracted": "4",
+          "ground_truth": "4",
+          "output_preview": "\nThe value of the expression $\\left(16$ The expression $\\left(16$.\nThe expression $\\left(16\\left(16$?$. The value of the expression is $\\left(16$ is $\\left(16$.\nFirst, we substitute $a = 8$ into the e"
+        },
+        {
+          "id": "math_0065",
+          "correct": false,
+          "extracted": "7",
+          "ground_truth": "6",
+          "output_preview": "\nThe problem involves the equation $m$.\nWe are given the equation $m$.\nWe can start by squaring the equation $m$.\nWe have $(m+n)^2$.\nExpanding the equation $m^2 + n^2\nWe can expand the equation $m^2 +"
+        },
+        {
+          "id": "math_0066",
+          "correct": false,
+          "extracted": "16",
+          "ground_truth": "17",
+          "output_preview": "\nThe distance from the origin to a point on the graph of $y$ is the form of the graph of the graph of the graph of the graph of $y = \\frac{12}x^2-9$ for $x$ in the form $a$ The distance from the origi"
+        },
+        {
+          "id": "math_0067",
+          "correct": false,
+          "extracted": "(1frac{9",
+          "ground_truth": "left(1frac{9",
+          "output_preview": " is the midpoint of $\\overline{PQ$$. The midpoint of $\\overline{PQ$ is the midpoint of $\\overline{PQ}$, and $R$ is the midpoint of $\\overline{PQ$? The midpoint of a line segment is the point that is e"
+        },
+        {
+          "id": "math_0068",
+          "correct": false,
+          "extracted": "60",
+          "ground_truth": "frac{15",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nThe sum of the fractions in the $n$th row is given by the formula $\\frac{1}{n+1} + \\frac{2}{n+1} + \\frac{3}{n+1} + \\dots + \\frac{n}{n+1} = \\frac{1+2+3+\\dots+n}{"
+        },
+        {
+          "id": "math_0069",
+          "correct": true,
+          "extracted": "-2",
+          "ground_truth": "-2",
+          "output_preview": "\nTo express $x^2 + 4$ in the form $x^2 + 4$ as $x^2 + 4x + 5$ in the form $a^2 + 4 + k$? We want to find the value of $hTo express $x^2 + 4x + 5$ in the form $a(x - h)^2 + k$, we need to complete the "
+        },
+        {
+          "id": "math_0070",
+          "correct": false,
+          "extracted": "9",
+          "ground_truth": "8",
+          "output_preview": "\nThe given expression is $y^2$.\nWe are given the point $(3,9$.\nThe expression is $9$.\nThe value of the expression is $9$.\nThe value of the expression is $9$.\nThe value of the expression is $9$.\nThe va"
+        },
+        {
+          "id": "math_0071",
+          "correct": true,
+          "extracted": "20",
+          "ground_truth": "20",
+          "output_preview": "\nLet's denote the lesser number as $x$, and the greater number as $y$. The lesser number is $x$, the greater number is $y$. The lesser number is $y$, the greater number, the ratio is $y$. The greater "
+        },
+        {
+          "id": "math_0072",
+          "correct": true,
+          "extracted": "24",
+          "ground_truth": "24",
+          "output_preview": "\nThe equation for $j$ is $j = $\\frac{16$.\nThe problem is given that $j$ is $16$, and $j$ is $16$? The problem is $16$.\nThe problem is given that $j$ is $14$.\nThe problem is given that $j$ is inversely"
+        },
+        {
+          "id": "math_0073",
+          "correct": false,
+          "extracted": "131",
+          "ground_truth": "frac{19",
+          "output_preview": "\nThe equation $2x^2 - 13x+14x+15$?\n\nThe equation $2x+13x+14x+15}$ a root of the equation $2x^2-1x+14x+15$.\n\nThe equation $2x^2-13x+15$ has roots $x=3$ and $x=5$. If $\\frac{13-\\sqrt{131}}{4}$ is a root"
+        },
+        {
+          "id": "math_0074",
+          "correct": true,
+          "extracted": "5",
+          "ground_truth": "5",
+          "output_preview": "\nThe equation $2x^2$.\nThe equation $2x^2$.\nFirst, we start by expanding the left-hand side of the equation$.\nWe get $2x^2 = -50$.\nThen, we divide both sides by $2$ to get $x^2 - 10x = -25$.\nNext, we a"
+        },
+        {
+          "id": "math_0075",
+          "correct": false,
+          "extracted": "16",
+          "ground_truth": "-55",
+          "output_preview": "\nThe vertex of the parabola is $(1, and the parabola is $y = 0$ is the vertex of the parabola is $y = 0$ and $(1)$ and $(1)$.\nThe vertex of the parabola is $a$.\n\nThe vertex of the parabola is $0$ is $"
+        },
+        {
+          "id": "math_0076",
+          "correct": false,
+          "extracted": "12",
+          "ground_truth": "60",
+          "output_preview": "\nThe problem: $\\sqrt[3]{12}$.\nThe problem is $\\sqrt[3]{12}$.\nThe problem is asking us to evaluate the product of the cube roots of the numbers $12$. We can simplify this expression by using the proper"
+        },
+        {
+          "id": "math_0077",
+          "correct": true,
+          "extracted": "-7",
+          "ground_truth": "-7",
+          "output_preview": "\nThe equation $\\frac{2x+1} = \\frac{1}{2x+1$2$ is the equation $\\frac{2x+1}2}$ equal to $\\frac{1}{2x+1}$? We set the two fractions equal to each other and solve for $x$.\n\\[\\frac{2x-1}{2x+2} = \\frac{x-3"
+        },
+        {
+          "id": "math_0078",
+          "correct": false,
+          "extracted": "0.44",
+          "ground_truth": "0.43",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nThe ball hits the ground when $y = 0$. So we need to solve the equation $-4.9t^2 - 3.5t + 2.4 = 0$ for $t$.\nThis is a quadratic equation in the form $at^2 + bt + c = 0$, where $"
+        },
+        {
+          "id": "math_0079",
+          "correct": true,
+          "extracted": "108",
+          "ground_truth": "108",
+          "output_preview": "\nThe problem is asking us to find the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number o"
+        },
+        {
+          "id": "math_0080",
+          "correct": false,
+          "extracted": "14550",
+          "ground_truth": "4950",
+          "output_preview": "\nThe multiples of 3 are 1000000000000000000000000000000000000\n\nTo find the sum of all multiples of 3 between 100 and 200, we first need to find the first and last multiples of 3 in this range.\nThe fir"
+        },
+        {
+          "id": "math_0081",
+          "correct": true,
+          "extracted": "50",
+          "ground_truth": "50",
+          "output_preview": "\nFirst, we expand the left side of the equation: \\begin{align*}(\\sqrt{12x+12x^2x+12)=12x+12x-12).$$\nWe can simplify the left side of the equation by expanding the left side: \\begin{align*}\n(\\sqrt{12x}"
+        },
+        {
+          "id": "math_0082",
+          "correct": false,
+          "extracted": "12",
+          "ground_truth": "14",
+          "output_preview": "\nThe sum of the two numbers is $12345678. The first number is $12345678 and $12345678$? The sum of the two numbers is $12345678$ The sum of the two numbers is $12345678$. The sum of the two numbers is"
+        },
+        {
+          "id": "math_0083",
+          "correct": true,
+          "extracted": "8",
+          "ground_truth": "8",
+          "output_preview": " of the recipe calls for 12. The recipe calls for 2. The recipe calls for $\\frac14 of salt to make a recipe? If the recipe calls for 2. To find the number of salt needed for 2. We need to find the num"
+        },
+        {
+          "id": "math_0084",
+          "correct": true,
+          "extracted": "26",
+          "ground_truth": "26",
+          "output_preview": "\nThe expression $3\\astarithmetic\nThe expression $3\\astarithmetic\nThe expression $3\\ast10$?\nTo find the value of $3\\astarithmetic\nThe expression $3\\ast1\nThe expression $3\\ast10$ is the value of the exp"
+        },
+        {
+          "id": "math_0085",
+          "correct": false,
+          "extracted": "243",
+          "ground_truth": "129",
+          "output_preview": "\ufffd\n\n ForCanBeConverted\n\nThe sequence given is a sequence of powers of 3, starting with 0. The first few terms are:\n\\[0, 1, 1, 3, 6, 9, 27, 81, 243, 729, \\ldots\\]\nWe want to find the first term that is "
+        },
+        {
+          "id": "math_0086",
+          "correct": true,
+          "extracted": "0",
+          "ground_truth": "0",
+          "output_preview": " here is the value of $\\log_2$.\nThe value of $\\log_2$$. The value of $\\log_2$ is 1. The value of $\\log_21$ is the exponent to which 2 must be raised to get 1. In other words, it is the number $x$ such"
+        },
+        {
+          "id": "math_0087",
+          "correct": true,
+          "extracted": "-5",
+          "ground_truth": "-5",
+          "output_preview": "\nThe quadratic formula $x^2 + bx + c = 0. The quadratic formula $x^2 + bx + c = 0$, we can substitute $-4$ into the quadratic formula $x^2 + b + c$? The quadratic formula states that the solutions to "
+        },
+        {
+          "id": "math_0088",
+          "correct": true,
+          "extracted": "2",
+          "ground_truth": "2",
+          "output_preview": "\nThe equation is $2determine the value of $e$ the equation $2dfrac{17$ the value of $2determine the equation $2$ times the value of $2$.\nThe first equation is $2$ times the value of $17$. The first eq"
+        },
+        {
+          "id": "math_0089",
+          "correct": true,
+          "extracted": "4",
+          "ground_truth": "4",
+          "output_preview": "\nThe expression $x^2 + 2$ is 10. The expression $x^2 + 2$ is 10. The smallest possible value of the expression $x^2$10$? To find the smallest value of the expression $x^2 - 6x + 13$, we can complete t"
+        },
+        {
+          "id": "math_0090",
+          "correct": false,
+          "extracted": "-16",
+          "ground_truth": "30",
+          "output_preview": "\nLet the first number be $x$ and the second number is $x+1. The problem is $x$ and the sum of the two numbers is 60. The first number? Let's call the first number $x$ and the second number. Let's call"
+        },
+        {
+          "id": "math_0091",
+          "correct": false,
+          "extracted": "194",
+          "ground_truth": "161",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nWe are given that $p + q = pq$ and $p - q = 7$.\nFrom the first equation, we can rearrange to get $pq - p - q = 0$, or $(p - 1)(q - 1) = 1$.\nFrom the second equa"
+        },
+        {
+          "id": "math_0092",
+          "correct": true,
+          "extracted": "1",
+          "ground_truth": "1",
+          "output_preview": " $f$ is a function $f$ is a function.  $f$ is a function.  $f$ is a function.  $f$ is a function.  $f$ is a function.  $f$ is a function.  $f$ is a function.  $f^{-1}(f^{-1}(f^{-1}(f^{-1}(2)(f(3)$\n\nTh"
+        },
+        {
+          "id": "math_0093",
+          "correct": false,
+          "extracted": "3",
+          "ground_truth": "5",
+          "output_preview": "\nThe average of $a$, $b$, and $c$?\nThe average of $a$, $b$, and $c$?\nThe average of $a$ is 10, the three numbers $a$, $b$ is 10, and the average of the three numbers $b$ and $c$ is 11. The average of "
+        },
+        {
+          "id": "math_0094",
+          "correct": false,
+          "extracted": "2",
+          "ground_truth": "3s^2",
+          "output_preview": "\nTo simplify the expression $\\frac{2s$.\nThe expression is $\\frac{2s$.\nThe expression $\\frac{2s^2s^2}$.\nThe expression is $\\frac{2s^2}{s^2}$.\nThe expression is $\\frac{2s^5}{s^3} - 6s^2 + \\frac{7s^3}{s}"
+        },
+        {
+          "id": "math_0095",
+          "correct": false,
+          "extracted": "1",
+          "ground_truth": "125",
+          "output_preview": "\nThe sum of the series is 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\n\nThe sum of an infinite geometric series with first term $a$ and common ratio $r$ (wh"
+        },
+        {
+          "id": "math_0096",
+          "correct": false,
+          "extracted": "10",
+          "ground_truth": "8",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nOriginally, there were 12 people, and each person received an equal daily share. So the total number of people is 12 + 3 = 15.\nIf each person receives an equal "
+        },
+        {
+          "id": "math_0097",
+          "correct": true,
+          "extracted": "286",
+          "ground_truth": "286",
+          "output_preview": "\nThe common difference of the sequence is $7$.\nThe common difference is $7$.\nThe sequence is 13, 13, 13, 3, 4, 31, 3000003. The common difference of the sequence is 7. The sequence starts at 13 and en"
+        },
+        {
+          "id": "math_0098",
+          "correct": false,
+          "extracted": "1",
+          "ground_truth": "(911)",
+          "output_preview": "\nThe slope of the line $y = 111. The slope-intercept form is $y = 3, $(2,3)$, $(16)$, and $(18,2)$, what is the fourth point? The slope-intercept form of the line is $y = 16. The slope-intercept form "
+        },
+        {
+          "id": "math_0099",
+          "correct": false,
+          "extracted": "5",
+          "ground_truth": "dfrac{1",
+          "output_preview": "\nThe function $g(x)$ is defined as $g(x)=\\dfrac{1}{x}$, find the value of $g(x)$ is defined as $g(x)=\\dfrac{1}{x}$.\nFirst, we need to find the inverse of $f^{-1}(x)$.\nTo find the inverse of $f(x)$, we"
+        }
+      ]
+    },
+    "aime_2025": {
+      "n_problems": 30,
+      "accuracy": 0.0,
+      "extraction_rate": 0.9,
+      "boxed_rate": 0.36666666666666664,
+      "per_problem": [
+        {
+          "id": "aime25_0000",
+          "correct": false,
+          "extracted": "8",
+          "ground_truth": "70",
+          "output_preview": "\nThe number $17_b$ is a number $97_b$ is a number $97_b$ of the digits in the number $97_b$ is a number $97_b$ of $17_b$.\n\nThe number $17_b$ is a number in base $b$ and is equal to $17_b$.\nThe number "
+        },
+        {
+          "id": "aime25_0001",
+          "correct": false,
+          "extracted": "416",
+          "ground_truth": "588",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nThe area of quadrilateral $DEGF$ is given as $288$. We can find the area of the heptagon $AFNBCEM$ by subtracting the area of quadrilateral $DEGF$ from the area"
+        },
+        {
+          "id": "aime25_0002",
+          "correct": false,
+          "extracted": null,
+          "ground_truth": "16",
+          "output_preview": "\nThe problem is asking for the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the n"
+        },
+        {
+          "id": "aime25_0003",
+          "correct": false,
+          "extracted": "3",
+          "ground_truth": "117",
+          "output_preview": "\n\\[12x^2 + 12y^2 + 100$$. The value of solutions to this equation. The value of $x$ and $y$ are integers, and $x$ and $y$ are integers, and $x^2 + $y^2 + 10y^2 = 0$. First, we can rewrite the equation"
+        },
+        {
+          "id": "aime25_0004",
+          "correct": false,
+          "extracted": "200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "ground_truth": "279",
+          "output_preview": " digits in base 1000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000000\n\nThe answer is: $2000000000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "id": "aime25_0005",
+          "correct": false,
+          "extracted": "2",
+          "ground_truth": "504",
+          "output_preview": "\nThe trapezoid $ABCD$ with $AB$ as $AB$ as $AB$ and $CD$ is $AB$ and $AB$ and $AB$ $AB$ sides. The bases of the trapez$AB$AB$ is $AB$ and $AB$ be $AB$ and $AB$ be $AB$ and $AB$ and $AB$ respectively. "
+        },
+        {
+          "id": "aime25_0006",
+          "correct": false,
+          "extracted": "frac{1}{frac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12}theanswerisfrac{12",
+          "ground_truth": "821",
+          "output_preview": "\nThe answer is $\\frac{1}{\\frac{12} The answer is $\\frac{12} The answer is $\\frac{12} The answer is $\\frac{12} The answer is $\\frac{12} The answer is $\\frac{12} The answer is $\\frac{12} The answer is $"
+        },
+        {
+          "id": "aime25_0007",
+          "correct": false,
+          "extracted": "10",
+          "ground_truth": "77",
+          "output_preview": "\nThe given system of equations. The answer is $\\boxed{10}$. The answer is $\\boxed{10}$. The answer is $\\boxed{10}$. The answer is $\\boxed{10}$. The answer is $\\boxed{10}$. The answer is $\\boxed{10}$. "
+        },
+        {
+          "id": "aime25_0008",
+          "correct": false,
+          "extracted": null,
+          "ground_truth": "62",
+          "output_preview": ". The vertex of the parabola is a parabola is the vertex of the parabola is the vertex of the parabola is the vertex of the parabola is the vertex of the parabola is the vertex of the vertex of the pa"
+        },
+        {
+          "id": "aime25_0009",
+          "correct": false,
+          "extracted": "1",
+          "ground_truth": "81",
+          "output_preview": "\n\\[\\text{Sudoku} \\text{Sudoku} is a $3 \\times$.\nThe number of cells in a $3 \\times$ 3 \\times$.\nThe numbers $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $1$ $"
+        },
+        {
+          "id": "aime25_0010",
+          "correct": false,
+          "extracted": "32",
+          "ground_truth": "259",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nThe function $f(x)$ is defined piecewise, and it repeats every 4 units. So, to find the intersection points of the parabola $x = 34y^2$ with the graph of $f(x)$"
+        },
+        {
+          "id": "aime25_0011",
+          "correct": false,
+          "extracted": "12",
+          "ground_truth": "510",
+          "output_preview": ". The given inequalities are\nThe set of points in the region is the region is the form of the region is the region is the region is the region is the region is the region is the region is the region i"
+        },
+        {
+          "id": "aime25_0012",
+          "correct": false,
+          "extracted": "25",
+          "ground_truth": "204",
+          "output_preview": "'s method. The problem. The disk is divided into $4$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25$ $25\n\nThe answer is: $25$.\n\nThe problem is "
+        },
+        {
+          "id": "aime25_0013",
+          "correct": false,
+          "extracted": "abcisosceabcisoscebearegularpentagonsuchthatthesumofthelengthsofabcisosceabcisosceabcisosceabcisosceabcisosceabcisosceabcabcisosceabcisosceabcisosceisosceisosceabcisosceabcabcisosceabcisosceabcabcisosceabcabcisosceabcabcabcabcabc",
+          "ground_truth": "60",
+          "output_preview": " $ABCD$ isosce. The answer is $ABC$ isosce$ABC$ isosce$ be a regular pentagon such that the sum of the lengths of $ABC$ isosce$ABC$ isosce$ABC$ isosce$ABC$ isosce$ABC$ isosce$ABC$ isosce$ABC$ABC$ isos"
+        },
+        {
+          "id": "aime25_0014",
+          "correct": false,
+          "extracted": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "ground_truth": "735",
+          "output_preview": " $a$.\nThe problem.\n\nThe number of ordered triples $(a$ $a$.\nThe number of ordered triples $(a$ $a$ $a$ $a$ $a$ $a$ $a$ $a$ $a$ a$ $a$ $a$ $a$ $a$ $a$ $a$ $a$ $a$ $a$.\n\nThe number of ordered triples $("
+        },
+        {
+          "id": "aime25_0015",
+          "correct": false,
+          "extracted": "120",
+          "ground_truth": "468",
+          "output_preview": "\nThe answer is $ABCD$ is a triangle. The distance between $A$ and $B$ are $C$ and $D$ are $E$ and $F$ are all on a plane. The distance between $A$ and $B$ and $D$ and $E$ and $F$. The distance between"
+        },
+        {
+          "id": "aime25_0016",
+          "correct": false,
+          "extracted": "-6",
+          "ground_truth": "49",
+          "output_preview": "\nThe equation $n+2$ is equal to $3n+2$ is equal to $3n+2$ that are less than $3n+2$ is equal to $3n+2$ is equal to $3n+2$ We start by expanding the right side of the equation: \\[3(n+3)(n^2+9) = 3(n^3+"
+        },
+        {
+          "id": "aime25_0017",
+          "correct": false,
+          "extracted": "24",
+          "ground_truth": "82",
+          "output_preview": "\nThe answer is $12$.\nThe answer is $2$.\nThe answer is $2$.\nThe answer is $2\\times 2$.\nThe answer is $2$.\nThe answer is $2$.\nThe answer is $2$.\nThe answer is $2$.\nThe answer is $2$.\nThe answer is $2$.\n"
+        },
+        {
+          "id": "aime25_0018",
+          "correct": false,
+          "extracted": "2",
+          "ground_truth": "106",
+          "output_preview": "\\text{.}$$\\text{.}$$\nThe given expression is equal to \\frac{10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "id": "aime25_0019",
+          "correct": false,
+          "extracted": null,
+          "ground_truth": "336",
+          "output_preview": "and $A$ is the midpoint of $\\angle$ is the midpoint of $\\angle$ is the midpoint of $\\angle$ is the midpoint of $\\angle$ is the midpoint of $\\angle$ is the midpoint of $\\angle$ is the midpoint of $\\ang"
+        },
+        {
+          "id": "aime25_0020",
+          "correct": false,
+          "extracted": "136",
+          "ground_truth": "293",
+          "output_preview": " ForCanBeConverted\n\n ForCanBeConverted\n\nThe area of the rectangle $EFGH$ is equal to the area of the triangle $\\triangle DGF$ plus the area of the triangle $\\triangle CHG$. Since the triangles have eq"
+        },
+        {
+          "id": "aime25_0021",
+          "correct": false,
+          "extracted": "1",
+          "ground_truth": "237",
+          "output_preview": "\nThe answer is $\\boxed{1}$. The answer is $\\boxed{1}$. The answer is $\\boxed{1}$. The answer is $\\boxed{1}$. The answer is $\\boxed{1}$. The answer is $\\boxed{1}$. The answer is $\\boxed{1}$. The answer"
+        },
+        {
+          "id": "aime25_0022",
+          "correct": false,
+          "extracted": "1000",
+          "ground_truth": "610",
+          "output_preview": ", and $N$ is the number of $N$ The number of $N$ is the number of $N$ is $100$ cents, $100$ cents, and $100$ cents. What is the number of $1000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "id": "aime25_0023",
+          "correct": false,
+          "extracted": "6",
+          "ground_truth": "149",
+          "output_preview": " $f$.\nThe function $f$.\nThe function $f$ is $f$f$.\nThe function $f$.\nThe function $f$.\nThe function $f$.\nThe function $f$.\nThe function $f$.\nThe function $f$.\nThe function $f$.\nThe function $f$.\nThe f"
+        },
+        {
+          "id": "aime25_0024",
+          "correct": false,
+          "extracted": "435",
+          "ground_truth": "907",
+          "output_preview": "\nThe problem is asking us to find the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of the number o"
+        },
+        {
+          "id": "aime25_0025",
+          "correct": false,
+          "extracted": "-2",
+          "ground_truth": "113",
+          "output_preview": "\nThe problem is asking us to find the number of the number of ways to be the number of ways to be the number of ways to be the number of ways to be the number of ways to be the number of ways to draw "
+        },
+        {
+          "id": "aime25_0026",
+          "correct": false,
+          "extracted": "2",
+          "ground_truth": "19",
+          "output_preview": " zw\u0142aszc\n\n\ufffd\n\nLet's denote the lengths of the sides of the polygon as $a_1, a_2, \\dots, a_{11}$. We are given that the area of $\\triangle A_i A_1 A_{i+1}$ is 1 for every $2 \\le i \\le 10$, and $\\cos(\\an"
+        },
+        {
+          "id": "aime25_0027",
+          "correct": false,
+          "extracted": "36",
+          "ground_truth": "248",
+          "output_preview": "\n\\begin{step1}$. The value of $x_1$.\nThe sequence is a sequence of rational numbers. The value of $x_1$ is a sequence of rational numbers. The value of $x_1$ is a sequence of rational numbers. The val"
+        },
+        {
+          "id": "aime25_0028",
+          "correct": false,
+          "extracted": "145bearighttrianglewithab=145",
+          "ground_truth": "104",
+          "output_preview": "\nThe problem is a right triangle with $AB = 145$.\nThe answer is $145$ be a right triangle with $AB = 145$. The answer is $145$.\nThe answer is $145$.\nThe answer is $145$.\nThe answer is $145$.\nThe answe"
+        },
+        {
+          "id": "aime25_0029",
+          "correct": false,
+          "extracted": "134",
+          "ground_truth": "240",
+          "output_preview": "\n$$f(x) = \\frac{1}{x}$$\n$$f(x) = \\frac{18$$f(x) = \\frac{18$$f(x) = \\frac{1}{18}$$f(x) = \\frac{18}$$f(x) = \\frac{18}$$f(x) = \\frac{18$$f(x) = \\frac{18$.\n\nThe function $k$ is given by\n$$f(x) = \\frac{(x "
+        }
+      ]
+    }
+  }
+}

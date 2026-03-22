@@ -38,11 +38,17 @@ sys.path.insert(0, PROJECT_ROOT)
 
 
 class InlineEvalCallback(TrainerCallback):
-    """Run a quick eval every N steps; stop early if accuracy stops improving.
+    """Early-stop on validation loss plateau; log AMC12 accuracy for monitoring.
 
-    Uses the same generate/extract pipeline as run_hf.py so numbers are
-    comparable. Designed for AMC12 (20 problems, max_tokens=1024) — fast
-    enough to run every 100-200 steps without dominating training time.
+    Val loss comes from the Trainer's built-in eval (run on a held-out split of
+    the training data). This is more reliable than training loss (doesn't detect
+    overfitting) or AMC12 accuracy (too noisy at 20 problems).
+
+    Early-stops when val loss improvement drops below `loss_min_delta` (relative)
+    for `patience` consecutive Trainer eval rounds.
+
+    AMC12 accuracy is also computed at each eval step purely for logging — it
+    does not affect the stopping decision.
     """
 
     def __init__(
@@ -51,23 +57,34 @@ class InlineEvalCallback(TrainerCallback):
         problems: list[dict],
         eval_every: int,
         max_tokens: int = 1024,
-        patience: int = 2,
+        prompt_format: str = "chat_think",
+        patience: int = 3,
         min_steps: int = 100,
+        loss_min_delta: float = 0.005,  # <0.5% relative improvement = plateau
+        experiment_id: str = "",
+        registry_path: str = "",
+        bench_name: str = "amc12",
     ):
         from scripts.eval.extraction import extract_answer, normalize_answer
-        from scripts.eval.run_hf import make_eval_prompt, _eos_token_ids
+        from scripts.eval.run_hf import make_eval_prompt
 
         self.tokenizer = tokenizer
         self.problems = problems
         self.eval_every = eval_every
         self.max_tokens = max_tokens
+        self.prompt_format = prompt_format
         self.patience = patience
         self.min_steps = min_steps
+        self.loss_min_delta = loss_min_delta
+        self.experiment_id = experiment_id
+        self.registry_path = registry_path
+        self._bench_name = bench_name
         self._extract = extract_answer
         self._normalize = normalize_answer
         self._make_prompt = make_eval_prompt
         self._eos_ids = None
-        self.history: list[tuple[int, float]] = []  # (step, accuracy)
+        # (step, val_loss)  — populated by on_evaluate
+        self.val_loss_history: list[tuple[int, float]] = []
 
     def _eos_token_ids(self, model):
         if self._eos_ids is None:
@@ -76,61 +93,93 @@ class InlineEvalCallback(TrainerCallback):
         return self._eos_ids
 
     @torch.no_grad()
-    def _run_eval(self, model) -> float:
+    def _run_acc_eval(self, model) -> float:
+        """Run AMC12 accuracy eval for logging only."""
+        from scripts.eval.run_hf import auto_batch_size, generate_hf_batch, generate_hf
         model.eval()
-        n_correct = 0
-        eos_ids = self._eos_token_ids(model)
-        for prob in self.problems:
-            prompt = self._make_prompt(prob["problem"], self.tokenizer, "chat_think")
-            inputs = self.tokenizer(prompt, return_tensors="pt").to(model.device)
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=self.max_tokens,
-                do_sample=False,
-                eos_token_id=eos_ids,
-                pad_token_id=self.tokenizer.pad_token_id,
-            )
-            generated = outputs[0][inputs["input_ids"].shape[-1]:]
-            text = self.tokenizer.decode(generated, skip_special_tokens=True)
-            extracted = self._extract(text)
-            gt = self._normalize(str(prob["answer"]))
-            if extracted is not None and extracted == gt:
-                n_correct += 1
+        self.tokenizer.padding_side = "left"
+        prompts = [self._make_prompt(p["problem"], self.tokenizer, self.prompt_format)
+                   for p in self.problems]
+        sample_len = len(self.tokenizer.encode(prompts[0], add_special_tokens=False))
+        bs = auto_batch_size(mode="eval", seq_len=sample_len + self.max_tokens)
+        if bs > 1:
+            outputs = generate_hf_batch(model, self.tokenizer, prompts,
+                                        max_tokens=self.max_tokens, batch_size=bs)
+        else:
+            outputs = [generate_hf(model, self.tokenizer, p, max_tokens=self.max_tokens)
+                       for p in prompts]
+        n_correct = sum(
+            1 for prob, text in zip(self.problems, outputs)
+            if (extracted := self._extract(text)) is not None
+            and extracted == self._normalize(str(prob["answer"]))
+        )
         model.train()
         return n_correct / len(self.problems) if self.problems else 0.0
 
-    def on_step_end(self, args, state, control, model=None, **kwargs):
-        step = state.global_step
-        if self.eval_every <= 0 or step == 0 or step % self.eval_every != 0:
+    def on_evaluate(self, args, state, control, model=None, metrics=None, **kwargs):
+        """Called after Trainer computes val loss. Check plateau and log accuracy."""
+        val_loss = (metrics or {}).get("eval_loss")
+        if val_loss is None:
             return control
 
-        t0 = time.time()
-        acc = self._run_eval(model)
-        elapsed = time.time() - t0
-        self.history.append((step, acc))
+        step = state.global_step
+        self.val_loss_history.append((step, val_loss))
 
+        # Log AMC12 accuracy alongside val loss
+        t0 = time.time()
+        acc = self._run_acc_eval(model)
+        elapsed = time.time() - t0
         n = len(self.problems)
-        n_correct = round(acc * n)
-        best = max(a for _, a in self.history)
+        best_acc = max(a for _, a in [(0, 0.0)] + [(s, a) for s, a in
+                       [(h[0], h[1]) for h in getattr(self, "_acc_history", [])]])
+        if not hasattr(self, "_acc_history"):
+            self._acc_history = []
+        self._acc_history.append((step, acc))
+        best_acc = max(a for _, a in self._acc_history)
+
         print(
-            f"\n[inline-eval] step={step}  amc12={acc:.1%} ({n_correct}/{n})  "
-            f"best={best:.1%}  elapsed={elapsed:.0f}s",
+            f"\n[inline-eval] step={step}  val_loss={val_loss:.4f}  "
+            f"acc={acc:.1%} ({round(acc*n)}/{n})  best_acc={best_acc:.1%}  "
+            f"acc_elapsed={elapsed:.0f}s",
             flush=True,
         )
 
-        # Early stopping: no improvement over last `patience` checkpoints,
-        # and we've run at least min_steps.
-        if len(self.history) > self.patience and step >= self.min_steps:
-            recent_accs = [a for _, a in self.history[-self.patience:]]
-            best_before = max(a for _, a in self.history[:-self.patience])
-            if all(a <= best_before for a in recent_accs):
-                print(
-                    f"[early-stop] No improvement over last {self.patience} evals "
-                    f"(best_before={best_before:.1%}, recent={[f'{a:.1%}' for a in recent_accs]}). "
-                    f"Stopping training.",
-                    flush=True,
+        # Log mid-run checkpoint to registry if configured
+        if self.experiment_id and self.registry_path:
+            try:
+                from scripts.registry import append_result
+                bench_name = self._bench_name
+                append_result(
+                    {
+                        "experiment_id": f"{self.experiment_id}@step{step}",
+                        "base_experiment_id": self.experiment_id,
+                        "type": "mid-run",
+                        "step": step,
+                        "final_loss": val_loss,
+                        "eval": {f"{bench_name}_inline_greedy": acc},
+                    },
+                    self.registry_path,
                 )
-                control.should_training_stop = True
+            except Exception as e:
+                print(f"[inline-eval] registry write failed (non-fatal): {e}", flush=True)
+
+        # Early stop on val loss plateau (requires min_steps warmup)
+        if len(self.val_loss_history) <= self.patience or step < self.min_steps:
+            return control
+
+        loss_then = self.val_loss_history[-self.patience - 1][1]
+        loss_now  = self.val_loss_history[-1][1]
+        loss_improvement = (loss_then - loss_now) / loss_then if loss_then > 0 else float("inf")
+
+        if loss_improvement < self.loss_min_delta:
+            print(
+                f"[early-stop] Val loss plateaued for {self.patience} evals: "
+                f"{loss_then:.4f} → {loss_now:.4f} "
+                f"({loss_improvement*100:.2f}% < {self.loss_min_delta*100:.1f}% threshold). "
+                f"Stopping.",
+                flush=True,
+            )
+            control.should_training_stop = True
 
         return control
 
@@ -466,7 +515,8 @@ def main():
     parser.add_argument("--max-seq-len", type=int, default=2048)
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--batch-size", type=int, default=0,
+                        help="Per-device batch size. 0=auto-detect from device/VRAM (default).")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
@@ -497,9 +547,9 @@ def main():
              "Keeps last 2 checkpoints. Use for crash recovery on long runs.",
     )
     parser.add_argument(
-        "--eval-every", type=int, default=0,
-        help="Run inline AMC12 eval every N steps (0 = disabled). "
-             "Enables early stopping if accuracy plateaus.",
+        "--eval-every", type=int, default=-1,
+        help="Run inline AMC12 eval every N steps. "
+             "-1=auto (steps_per_epoch//4, capped 50-200), 0=disabled.",
     )
     parser.add_argument(
         "--eval-benchmark", type=str, default="amc12",
@@ -507,19 +557,29 @@ def main():
     )
     parser.add_argument(
         "--eval-n-inline", type=int, default=20,
-        help="Number of problems for inline eval (default: 20, keeps it fast ~2-3min).",
+        help="Number of problems for inline eval (default: 20, ~2-3 min per check).",
     )
     parser.add_argument(
         "--eval-max-tokens-inline", type=int, default=1024,
         help="Max generation tokens for inline eval.",
     )
     parser.add_argument(
-        "--early-stop-patience", type=int, default=2,
-        help="Stop training if inline eval doesn't improve for this many consecutive checks.",
+        "--early-stop-patience", type=int, default=3,
+        help="Evals without improvement (acc AND loss) before stopping.",
     )
     parser.add_argument(
         "--min-steps-before-stop", type=int, default=100,
         help="Don't early-stop before this many steps (let model warm up first).",
+    )
+    parser.add_argument(
+        "--loss-min-delta", type=float, default=0.005,
+        help="Minimum relative loss EMA improvement to count as progress (default 0.5%%).",
+    )
+    parser.add_argument(
+        "--registry-path", type=str, default="",
+        help="Path to JSONL registry file for mid-run checkpoint logging "
+             "(e.g. /results/experiment_registry.jsonl). "
+             "Experiment ID is derived from --output-dir.",
     )
     args = parser.parse_args()
 
@@ -531,6 +591,11 @@ def main():
     # During gradient-checkpointing backward, activations are recomputed, temporarily
     # spiking memory. Cap at 1× seq_len for seq≥8192 (batch=1, use grad_accum).
     # At seq=4096, 2× is safe: logits ~3.8GB, well within A100-40GB.
+    # Auto batch size for training (only when not using token-budget batching)
+    if args.batch_size == 0 and args.max_tokens_per_batch <= 0:
+        from scripts.eval.run_hf import auto_batch_size
+        args.batch_size = auto_batch_size(mode="train", seq_len=args.max_seq_len)
+
     if args.max_tokens_per_batch <= 0 and args.max_seq_len >= 4096:
         if args.max_seq_len >= 8192:
             args.max_tokens_per_batch = args.max_seq_len  # batch=1 per step
@@ -624,11 +689,19 @@ def main():
         print(f"  Packing: {orig_count} samples -> {packed_count} packed sequences "
               f"(ratio: {ratio:.1f}x, utilization: {total_non_pad / total_orig_tokens * 100:.0f}%)", flush=True)
 
-    dataset = Dataset.from_list(tokenized)
+    # Hold out last 5% (min 10, max 200) as validation set for val loss early stopping
+    n_val = max(10, min(200, len(tokenized) // 20))
+    train_tokenized = tokenized[:-n_val]
+    val_tokenized   = tokenized[-n_val:]
+    val_seq_lengths = seq_lengths[-n_val:]
+    seq_lengths     = seq_lengths[:-n_val]
+    print(f"  Train/val split: {len(train_tokenized)} train, {len(val_tokenized)} val", flush=True)
+
+    dataset     = Dataset.from_list(train_tokenized)
+    val_dataset = Dataset.from_list(val_tokenized)
     use_token_budget = args.max_tokens_per_batch > 0
 
     if use_token_budget:
-        # Count approx steps: build the sampler to find out
         _preview_sampler = TokenBudgetBatchSampler(seq_lengths, args.max_tokens_per_batch, shuffle=False)
         steps_per_epoch = len(_preview_sampler)
         batching_desc = f"token-budget={args.max_tokens_per_batch} (~{steps_per_epoch} steps/epoch)"
@@ -636,8 +709,16 @@ def main():
         steps_per_epoch = len(dataset) // (args.batch_size * args.gradient_accumulation_steps)
         batching_desc = f"batch={args.batch_size} ({steps_per_epoch} steps/epoch)"
     total_steps = steps_per_epoch * args.epochs
-    print(f"\n  Dataset: {len(dataset)} sequences", flush=True)
+    print(f"\n  Dataset: {len(dataset)} train sequences", flush=True)
     print(f"  Batching: {batching_desc}, total steps: {total_steps}", flush=True)
+
+    # Inline eval — resolve eval_every before building TrainingArguments
+    # so we can pass eval_strategy/eval_steps to the Trainer in one place.
+    eval_every = args.eval_every
+    if eval_every == -1:
+        eval_every = max(50, min(200, steps_per_epoch // 4))
+        print(f"\n[inline-eval] Auto eval-every={eval_every} steps "
+              f"(steps_per_epoch={steps_per_epoch})", flush=True)
 
     # Training
     os.makedirs(args.output_dir, exist_ok=True)
@@ -648,9 +729,7 @@ def main():
             save_total_limit=2,
         )
     else:
-        save_kwargs = dict(
-            save_strategy="epoch",
-        )
+        save_kwargs = dict(save_strategy="epoch")
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -668,35 +747,44 @@ def main():
         dataloader_pin_memory=True,
         dataloader_num_workers=4,
         remove_unused_columns=False,
+        # Val loss eval — always on so we have the loss curve even without early-stopping
+        eval_strategy="steps",
+        eval_steps=eval_every if eval_every > 0 else steps_per_epoch,
         **save_kwargs,
     )
 
-    # Inline eval callback
+    # AMC12 accuracy callback (monitoring only — stopping is driven by val loss)
     extra_callbacks = []
-    if args.eval_every > 0:
-        from scripts.eval.run_hf import load_benchmark
+    if eval_every > 0:
+        from scripts.eval.run_hf import load_benchmark, run_eval
         print(f"\n[inline-eval] Loading {args.eval_n_inline} {args.eval_benchmark} problems "
-              f"for eval-every={args.eval_every} steps...", flush=True)
+              f"for accuracy monitoring...", flush=True)
         eval_problems = load_benchmark(args.eval_benchmark, n=args.eval_n_inline)
-        print(f"[inline-eval] Baseline: running base eval on {len(eval_problems)} problems before training...", flush=True)
-        from scripts.eval.run_hf import run_eval
+
+        print(f"[inline-eval] Baseline: running pre-training accuracy eval...", flush=True)
         base_summary = run_eval(
             model, tokenizer, eval_problems,
             max_tokens=args.eval_max_tokens_inline,
             prompt_format=args.prompt_format,
-            eval_batch_size=1,
         )
         print(f"[inline-eval] Base accuracy: {base_summary['accuracy']:.1%}", flush=True)
+
+        # Derive experiment ID from output dir — same name used by Modal caller,
+        # no separate flag needed.
+        experiment_id = os.path.basename(args.output_dir.rstrip("/"))
         inline_cb = InlineEvalCallback(
             tokenizer=tokenizer,
             problems=eval_problems,
-            eval_every=args.eval_every,
+            eval_every=eval_every,
             max_tokens=args.eval_max_tokens_inline,
+            prompt_format=args.prompt_format,
             patience=args.early_stop_patience,
             min_steps=args.min_steps_before_stop,
+            loss_min_delta=args.loss_min_delta,
+            experiment_id=experiment_id,
+            registry_path=args.registry_path,
+            bench_name=args.eval_benchmark,
         )
-        # Seed history with base score so early-stopping compares against it
-        inline_cb.history.append((0, base_summary["accuracy"]))
         extra_callbacks.append(inline_cb)
 
     collator = DataCollatorForSeq2Seq(tokenizer, padding=True, pad_to_multiple_of=8)
@@ -706,6 +794,7 @@ def main():
             model=model,
             args=training_args,
             train_dataset=dataset,
+            eval_dataset=val_dataset,
             data_collator=collator,
             callbacks=callbacks,
             max_tokens_per_batch=args.max_tokens_per_batch,
@@ -716,6 +805,7 @@ def main():
             model=model,
             args=training_args,
             train_dataset=dataset,
+            eval_dataset=val_dataset,
             data_collator=collator,
             callbacks=callbacks,
         )
@@ -745,12 +835,17 @@ def main():
         "lora_alpha": args.lora_alpha,
         "data_path": args.data,
         "data_size": len(tokenized),
+        "n_val": n_val,
         "epochs": args.epochs,
         "lr": args.lr,
         "max_seq_len": args.max_seq_len,
         "batch_size": args.batch_size,
         "packing": args.packing,
         "final_loss": final_loss,
+        "final_val_loss": next(
+            (e["eval_loss"] for e in reversed(trainer.state.log_history) if "eval_loss" in e),
+            None,
+        ),
         "wall_clock_s": elapsed,
         "log_history": trainer.state.log_history,
     }

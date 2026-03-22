@@ -1,106 +1,29 @@
 {
   "dataset": "dartmath",
-  "analyzed_at": "2026-03-21T14:37:38.154199+00:00",
+  "analyzed_at": "2026-03-21T18:47:10.999161+00:00",
   "length_filter": {
     "min_chars": null,
     "max_chars": null
   },
   "phase1": {
-    "sample_size": 5,
+    "sample_size": 50,
     "non_llm_stats": {
-      "n": 5,
+      "n": 50,
       "length": {
-        "mean": 1289,
-        "median": 1465,
-        "stdev": 284,
-        "p10": 863,
-        "p25": 1129,
-        "p50": 1465,
+        "mean": 1324,
+        "median": 1276,
+        "stdev": 400,
+        "p10": 911,
+        "p25": 1108,
+        "p50": 1282,
         "p75": 1480,
-        "p90": 1510,
-        "p95": 1510,
-        "p99": 1510
-      },
-      "length_buckets": {
-        "0_3k": {
-          "count": 5,
-          "pct": 1.0
-        },
-        "3k_7k": {
-          "count": 0,
-          "pct": 0.0
-        },
-        "7k_14k": {
-          "count": 0,
-          "pct": 0.0
-        },
-        "14k_28k": {
-          "count": 0,
-          "pct": 0.0
-        },
-        "28k_plus": {
-          "count": 0,
-          "pct": 0.0
-        }
-      },
-      "boxed_rate": 1.0,
-      "think_tag_rate": 0.0,
-      "coding_content_rate": 0.0,
-      "bold_headers_rate": 0.0,
-      "step_markers_rate": 0.0,
-      "r1_opener_rate": 0.4,
-      "multiline_reasoning_rate": 1.0
-    },
-    "llm_analysis": {
-      "style_score": 4,
-      "style_label": "semi-structured",
-      "verbosity_score": 5,
-      "verbosity_label": "moderate",
-      "step_by_step_score": 6,
-      "proof_style_score": 4,
-      "exploratory_score": 1,
-      "latex_density_score": 8,
-      "difficulty_score": 6,
-      "difficulty_label": "high_school",
-      "reasoning_type": "step_by_step",
-      "structure_features": [
-        "latex_heavy",
-        "plain_prose",
-        "numbered_steps",
-        "word_problem_setup"
-      ],
-      "content_types": [
-        "algebra",
-        "calculus"
-      ],
-      "answer_format": "boxed_only",
-      "think_tag_usage": "none",
-      "is_math_dataset": true,
-      "coding_contamination": "none",
-      "quality_notes": "The dataset provides multiple distinct reasoning paths for the same mathematical problem, maintaining consistent correctness and high-quality LaTeX formatting.",
-      "overall_quality_score": 8,
-      "model": "gemini-3-flash-preview"
-    }
-  },
-  "phase2": {
-    "sample_size": 25,
-    "non_llm_stats": {
-      "n": 25,
-      "length": {
-        "mean": 1384,
-        "median": 1286,
-        "stdev": 444,
-        "p10": 1021,
-        "p25": 1129,
-        "p50": 1286,
-        "p75": 1465,
-        "p90": 1939,
-        "p95": 2266,
+        "p90": 1811,
+        "p95": 2033,
         "p99": 2986
       },
       "length_buckets": {
         "0_3k": {
-          "count": 25,
+          "count": 50,
           "pct": 1.0
         },
         "3k_7k": {
@@ -125,41 +48,97 @@
       "coding_content_rate": 0.0,
       "bold_headers_rate": 0.0,
       "step_markers_rate": 0.0,
-      "r1_opener_rate": 0.12,
-      "multiline_reasoning_rate": 0.92
+      "r1_opener_rate": 0.1,
+      "multiline_reasoning_rate": 0.94
     },
-    "consistency_check": {
-      "model": "gemini-3.1-flash-lite-preview",
-      "n_checked": 25,
-      "is_math_rate": 1.0,
-      "matches_style_rate": 0.92,
-      "avg_quality": 4.68,
-      "quality_distribution": {
-        "1": 1,
-        "2": 1,
-        "3": 0,
-        "4": 1,
-        "5": 22
+    "llm_analysis": null
+  },
+  "phase2": {
+    "sample_size": 500,
+    "non_llm_stats": {
+      "n": 500,
+      "length": {
+        "mean": 2466,
+        "median": 1930,
+        "stdev": 1750,
+        "p10": 1068,
+        "p25": 1389,
+        "p50": 1931,
+        "p75": 2584,
+        "p90": 5266,
+        "p95": 6680,
+        "p99": 8437
       },
-      "flag_counts": {
-        "malformed": 2
-      },
-      "flagged_samples": [
-        {
-          "idx": 1,
-          "is_math": true,
-          "matches_style": false,
-          "quality": 2,
-          "flag": "malformed"
+      "length_buckets": {
+        "0_3k": {
+          "count": 398,
+          "pct": 0.796
         },
-        {
-          "idx": 6,
-          "is_math": true,
-          "matches_style": false,
-          "quality": 1,
-          "flag": "malformed"
+        "3k_7k": {
+          "count": 81,
+          "pct": 0.162
+        },
+        "7k_14k": {
+          "count": 21,
+          "pct": 0.042
+        },
+        "14k_28k": {
+          "count": 0,
+          "pct": 0.0
+        },
+        "28k_plus": {
+          "count": 0,
+          "pct": 0.0
         }
-      ]
-    }
+      },
+      "boxed_rate": 1.0,
+      "think_tag_rate": 0.0,
+      "coding_content_rate": 0.012,
+      "bold_headers_rate": 0.002,
+      "step_markers_rate": 0.002,
+      "r1_opener_rate": 0.088,
+      "multiline_reasoning_rate": 0.91
+    },
+    "consistency_check": null
+  },
+  "dedup": {
+    "n_total": 50000,
+    "n_unique_problems": 1067,
+    "duplication_ratio": 46.86,
+    "solutions_per_problem": {
+      "min": 1,
+      "max": 270,
+      "mean": 46.9,
+      "median": 19
+    },
+    "solutions_distribution": {
+      "1": 72,
+      "2_5": 200,
+      "6_20": 283,
+      "21_50": 182,
+      "51_plus": 330
+    },
+    "top_problems": [
+      {
+        "count": 270,
+        "problem_prefix": "The complete graph of $y=f(x)$, which consists of five line segments, is shown in red below. (On thi"
+      },
+      {
+        "count": 190,
+        "problem_prefix": "Given that the polynomial $x^2-kx+16$ has only positive integer roots, find the average of all disti"
+      },
+      {
+        "count": 190,
+        "problem_prefix": "Jack walked up a hill at a speed of $(x^2-11x-22)$ miles per hour. Meanwhile, Jill walked a total di"
+      },
+      {
+        "count": 190,
+        "problem_prefix": "There is only one value of $k$ for which the line $x=k$ intersects the graphs of $y=x^2+6x+5$ and $y"
+      },
+      {
+        "count": 190,
+        "problem_prefix": "Elmo makes $N$ sandwiches for a fundraiser. For each sandwich he uses $B$ globs of peanut butter at "
+      }
+    ]
   }
 }

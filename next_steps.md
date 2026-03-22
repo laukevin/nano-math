@@ -15,7 +15,17 @@
   - `acemath-think-10k-v2`: SVAMP 85%, GSM8K 70%, MATH 62%, AIME **3.3%** — best overall
   - `stratos-seq4096` (E1): SVAMP 57%, GSM8K 45%, MATH 42%, AIME **3.3%** — best R1-only
 - **AIME ceiling**: 3.3% across all approaches. Not yet broken.
-- **Currently running**: E5 (`sft-mot14k-5k-seq8192`) and E9 (`sft-mot-phase1-then-14k-seq8192`) — training complete, eval in progress
+- **E5 result** (`sft-mot14k-5k-seq8192`): AMC12 2025 = **3.3%** (below base 20%) — MoT 14K+ seq8192 fails to beat base. AIME eval timed out on Modal (6h limit).
+- **E9** (`sft-mot-phase1-then-14k-seq8192`): AMC12 eval running locally now
+- **AMC12 2025 leaderboard** (new proxy eval, 30 problems, post-cutoff):
+
+| Model | AMC12 2025 |
+|---|---|
+| base Qwen3-0.6B | 20.0% |
+| acemath-think-10k-v2 | **23.3%** |
+| acemath-15k | 16.7% |
+| stratos-seq4096 | 6.7% |
+| E5 mot14k-seq8192 | 3.3% |
 
 ## Infrastructure
 
@@ -401,32 +411,44 @@ Run the top 2-3 sources from Wave 1 at multiple sizes. Save checkpoints to plot 
 
 **Key findings:**
 
-| Experiment | SVAMP | GSM8K | MATH | AIME | Notes |
-|---|---|---|---|---|---|
-| base-no-sft | 24% | 40% | **59%** | 0% | MATH ceiling from pretraining |
-| acemath-think-10k-v2 | **85%** | **70%** | 62% | **3.3%** | Best overall — think traces matter |
-| stratos-seq4096 (E1) | 57% | 45% | 42% | **3.3%** | First AIME signal, R1 style |
-| stratos-full-17k-seq4096 (E8) | 47% | 37% | 39% | **3.3%** | More data doesn't scale AIME |
-| MoT-base-phase1 | 61% | 46% | 44% | 0% | Short MoT traces, no AIME |
-| MoT-5k-seq4096 (E4) | 47% | 59% | 59% | 0% | Invalid — 23/5K survived seq filter |
-| MoT-7k-14k-seq4096 (E2) | 43% | 30% | 27% | 0% | Wrong bucket, too easy |
-| acemath→stratos (E3) | 12% | 33% | 33% | 0% | Catastrophic forgetting |
-| MoT14k-seq8192 (E5) | — | — | — | ⏳ | Eval pending |
-| phase1→MoT14k-seq8192 (E9) | — | — | — | ⏳ | Eval pending |
+| Experiment | SVAMP | GSM8K | MATH | AIME | AMC12 | Notes |
+|---|---|---|---|---|---|---|
+| base-no-sft | 24% | 40% | **59%** | 0% | 20.0% | MATH ceiling from pretraining |
+| acemath-think-10k-v2 | **85%** | **70%** | 62% | **3.3%** | **23.3%** | Best overall — beats base on AMC12 too |
+| stratos-seq4096 (E1) | 57% | 45% | 42% | **3.3%** | 6.7% | AIME signal but −13pp AMC12 vs base |
+| stratos-full-17k-seq4096 (E8) | 47% | 37% | 39% | **3.3%** | — | More data doesn't scale AIME |
+| MoT-base-phase1 | 61% | 46% | 44% | 0% | — | Short MoT traces, no AIME |
+| MoT-5k-seq4096 (E4) | 47% | 59% | 59% | 0% | — | Invalid — 23/5K survived seq filter |
+| MoT-7k-14k-seq4096 (E2) | 43% | 30% | 27% | 0% | — | Wrong bucket, too easy |
+| acemath→stratos (E3) | 12% | 33% | 33% | 0% | — | Catastrophic forgetting |
+| MoT14k-seq8192 (E5) | — | — | — | ⏳ | 3.3% | −17pp AMC12 vs base; AIME eval timed out |
+| phase1→MoT14k-seq8192 (E9) | — | — | — | ⏳ | ⏳ | Eval pending |
 
 **Critical findings:**
-- **MATH eval is not a useful signal**: base model already scores 59% MATH. Any model that doesn't beat 59% on MATH is effectively worse than no SFT at all. AIME is the only discriminating metric.
+- **AMC12/AIME tradeoff discovered (2026-03-21)**: R1-style data (stratos, MoT) gives AIME signal but severely hurts AMC12. acemath-think is the only model that beats base on AMC12 (23.3% vs 20%) while also matching stratos on AIME (3.3%). Think-tag format without R1-style openers avoids the AMC12 penalty.
+- **AMC12 leaderboard** (30 problems, 2025, post-cutoff):
+
+| Model | AMC12 |
+|---|---|
+| acemath-think-10k-v2 | **23.3%** |
+| base Qwen3-0.6B | 20.0% |
+| acemath-15k | 16.7% |
+| stratos-seq4096 (E1) | 6.7% |
+| MoT14k-seq8192 (E5) | 3.3% |
+
+- **MATH eval is not a useful signal**: base model already scores 59%. AIME and AMC12 are the only discriminating metrics.
 - **Seq_len survival rates** (from `analyze_dataset.py` on 500 samples):
   - stratos: seq4096=70%, seq8192=89% — 19% more complete traces at seq8192 never been trained on
   - MoT 14K+: seq4096=1%, seq8192=64% — seq4096 is structurally incompatible
-- **E8 lesson**: 9,430 vs 7,175 stratos samples at same seq_len = no AIME gain. The extra samples are same distribution, not harder traces. The 30% dropped at seq4096 are dropped in both E1 and E8.
-- **acemath-think surprise**: non-R1 data with think tags ties R1 stratos on AIME (3.3%). The discriminating variable may be think-tag format, not R1-style openers.
+- **E8 lesson**: 9,430 vs 7,175 stratos samples at same seq_len = no AIME gain. The extra samples are same distribution, not harder traces.
+- **acemath-think finding**: non-R1 data with think tags ties R1 stratos on AIME (3.3%) while beating it on every other metric including AMC12.
 
 **Next experiments (priority order):**
-1. **Stratos at seq8192** — keeps 89% vs 70% at seq4096. The 19% additional complete hard traces have never been seen. Cleaner test than MoT because stratos is proven to produce AIME signal.
-2. **E5/E9 results** (pending) — if MoT 14K+ seq8192 > 3.3% AIME, scale it up. If flat, stratos seq8192 is the path.
-3. **acemath-think + stratos mixture** — both hit 3.3% AIME independently; do they combine? Same think-tag format, different problem styles.
-4. **GRPO/RL** — SFT may be hitting a fundamental ceiling at 3.3% for this model size. RL with outcome reward is the next lever.
+1. **E9 eval** — get AMC12 + AIME for phase1→MoT14k-seq8192. Is MoT curriculum better than cold start (E5)?
+2. **acemath-think + stratos mixture** — acemath-think has AMC12, stratos has AIME signal. A 50/50 mix may preserve AMC12 while adding R1 AIME signal. Key test of whether the tradeoff is fundamental.
+3. **acemath-think scaling** — 10K is the current run. Does 20K acemath-think or longer seq_len push AMC12 past 30%?
+4. **GRPO/RL** — if SFT ceiling is 3.3% AIME across all approaches, RL with outcome reward is the next lever. Use acemath-think as init.
+5. ~~**Stratos at seq8192**~~ — **CANCELLED** after AMC12 data. More R1-style data expected to hurt AMC12 further; no new signal vs E1/E8 pattern.
 
 ### Wave 4: Data mixtures
 **Goal**: Do blends beat single sources? Strategy: blend easy, blend medium, keep hard.

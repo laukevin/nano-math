@@ -371,7 +371,6 @@ def run_eval_only(
     eval_benchmarks: str = "svamp,gsm8k,math,aime_2025",
     eval_n_problems: int = 100,
     eval_max_tokens: int = 1024,
-    eval_batch_size: int = 64,
     update_registry: bool = True,
 ) -> dict:
     """Run eval on an existing checkpoint (no training).
@@ -399,7 +398,6 @@ def run_eval_only(
         f"--n-problems={eval_n_problems}",
         f"--max-tokens={eval_max_tokens}",
         f"--prompt-format={prompt_format}",
-        f"--eval-batch-size={eval_batch_size}",
         f"--output={eval_output}",
     ]
     if adapter:
@@ -474,10 +472,9 @@ def run_eval_sweep(
     experiments: str = "",
     base_model: str = "Qwen/Qwen3-0.6B-Base",
     prompt_format: str = "chat_think",
-    eval_benchmarks: str = "svamp,gsm8k,math,aime_2025",
+    eval_benchmarks: str = "svamp,gsm8k,math,amc12,aime_2025",
     eval_n_problems: int = 100,
     eval_max_tokens: int = 1024,
-    eval_batch_size: int = 32,
 ) -> dict:
     """Eval all adapters sequentially on one GPU — loads base model once.
 
@@ -567,7 +564,6 @@ def run_eval_sweep(
                 model, tokenizer, problems,
                 max_tokens=eval_max_tokens,
                 prompt_format=prompt_format,
-                eval_batch_size=eval_batch_size,
             )
             # keep per_problem for aime (30 problems, critical for analysis); strip for larger benchmarks
             if bench_name.startswith("aime"):
@@ -609,14 +605,15 @@ def run_eval_sweep(
     vol_results.commit()
 
     print(f"\n[sweep] Complete. {len(all_results)} experiments evaluated.", flush=True)
-    print(f"\n{'Experiment':<35} {'GSM8K':>7} {'MATH':>7} {'SVAMP':>7} {'AIME':>7}")
-    print("-" * 63)
+    print(f"\n{'Experiment':<35} {'GSM8K':>7} {'MATH':>7} {'SVAMP':>7} {'AMC12':>7} {'AIME':>7}")
+    print("-" * 71)
     for eid, r in all_results.items():
         print(
             f"{eid:<35} "
             f"{r.get('gsm8k_greedy', 0)*100:>6.1f}% "
             f"{r.get('math_greedy', 0)*100:>6.1f}% "
             f"{r.get('svamp_greedy', 0)*100:>6.1f}% "
+            f"{r.get('amc12_greedy', 0)*100:>6.1f}% "
             f"{r.get('aime_2025_greedy', 0)*100:>6.1f}%"
         )
     return all_results
@@ -641,24 +638,26 @@ def run_sft_lora(
     base_model: str = "Qwen/Qwen3-0.6B-Base",
     lr: float = 2e-5,
     epochs: int = 3,
-    batch_size: int = 32,
+    batch_size: int = 0,
     gradient_accumulation_steps: int = 1,
     max_seq_len: int = 2048,
     lora_rank: int = 16,
     prompt_format: str = "chat_think",
     packing: bool = False,
     max_tokens_per_batch: int = -1,
-    eval_benchmarks: str = "svamp,gsm8k,math,aime_2025",
-    eval_n_problems: int = 100,
+    eval_benchmarks: str = "amc12",
+    eval_n_problems: int = 30,
     eval_max_tokens: int = 1024,
-    eval_batch_size: int = 0,
     init_adapter: str = "",
     min_chars: int = 0,
     max_chars: int = 0,
     save_every: int = 500,
-    eval_every: int = 0,
+    eval_every: int = -1,
 ) -> dict:
     """Run LoRA SFT on a HuggingFace model, eval, and log to registry.
+
+    Post-training eval defaults to amc12/30 (fast smoketest ~2 min).
+    For full benchmark results, run run_eval_sweep on promising checkpoints.
 
     Full pipeline:
     1. Estimate memory, print GPU plan
@@ -857,11 +856,11 @@ def run_sft_lora(
         sft_cmd.append(f"--init-adapter={init_adapter}")
     if save_every > 0:
         sft_cmd.append(f"--save-every={save_every}")
-    if eval_every > 0:
-        sft_cmd.append(f"--eval-every={eval_every}")
+    sft_cmd.append(f"--eval-every={eval_every}")  # always pass: -1=auto, 0=disable, N=every N steps
+    sft_cmd.append("--registry-path=/results/experiment_registry.jsonl")
 
-    # Run training with periodic checkpoint commits (every 10 min) so epoch/step
-    # checkpoints survive a container crash mid-run.
+    # Run training with periodic checkpoint + results commits (every 10 min) so
+    # checkpoints and mid-run registry entries survive a container crash mid-run.
     COMMIT_INTERVAL_S = 600  # 10 minutes
     sft_proc = subprocess.Popen(sft_cmd, stdout=sys.stdout, stderr=sys.stderr)
     last_commit = time.time()
@@ -873,6 +872,11 @@ def run_sft_lora(
                 print("[checkpoint] Committed checkpoints to volume", flush=True)
             except Exception as e:
                 print(f"[checkpoint] commit failed (non-fatal): {e}", flush=True)
+            try:
+                vol_results.commit()
+                print("[results] Committed results to volume", flush=True)
+            except Exception as e:
+                print(f"[results] commit failed (non-fatal): {e}", flush=True)
             last_commit = time.time()
 
     sft_result = sft_proc
@@ -914,19 +918,8 @@ def run_sft_lora(
             training_meta = json.load(f)
 
     # --- 4. Run eval ---
-    # Auto-derive eval batch size from max_tokens if not specified.
-    # Larger generation windows need smaller batches to fit KV cache on GPU.
-    if eval_batch_size > 0:
-        _eval_bs = eval_batch_size
-    elif eval_max_tokens <= 1024:
-        _eval_bs = 64
-    elif eval_max_tokens <= 2048:
-        _eval_bs = 32
-    else:
-        _eval_bs = 8  # seq4096: KV cache is 4x larger
-
     eval_output = f"/results/eval_{experiment_id}.json"
-    print(f"\n[eval] Evaluating {experiment_id} (batch={_eval_bs}, max_tokens={eval_max_tokens})...", flush=True)
+    print(f"\n[eval] Evaluating {experiment_id} (max_tokens={eval_max_tokens})...", flush=True)
     eval_cmd = [
         "python", "-u", f"{project}/scripts/eval/run_hf.py",
         f"--base-model={base_model}",
@@ -935,7 +928,6 @@ def run_sft_lora(
         f"--n-problems={eval_n_problems}",
         f"--max-tokens={eval_max_tokens}",
         f"--prompt-format={prompt_format}",
-        f"--eval-batch-size={_eval_bs}",
         f"--output={eval_output}",
     ]
     eval_result = subprocess.run(
@@ -1180,6 +1172,97 @@ def run_batch_smoketest(
         print(f"  Step time: {r['avg_step_s']:.2f}s at batch={recommended}", flush=True)
 
     return {"gpu": gpu_name, "gpu_mem_gb": gpu_mem_total, "avg_seq_len": avg_seq_len, "results": results, "recommended_batch": recommended}
+
+
+@app.local_entrypoint()
+def run_parallel_sft(config_file: str = "", dry_run: bool = False) -> None:
+    """Launch multiple SFT experiments in parallel on Modal.
+
+    Each experiment runs in its own container (one A100 each), all starting
+    simultaneously. Much faster than running sequentially when searching over
+    data sources, learning rates, or hyperparameters.
+
+    config_file: path to a JSON file containing a list of experiment dicts.
+    Each dict is passed as kwargs to run_sft_lora.
+
+    Example experiments.json:
+        [
+          {"experiment_id": "sft-gsm8k-lr1e5", "data_source": "gsm8k", "lr": 1e-5},
+          {"experiment_id": "sft-acemath-lr2e5", "data_source": "acemath", "lr": 2e-5},
+          {"experiment_id": "sft-acemath-seq4k", "data_source": "acemath", "max_seq_len": 4096}
+        ]
+
+    Usage:
+        # Launch and wait for all to complete:
+        uv run modal run modal_jobs/train.py::run_parallel_sft --config-file experiments.json
+
+        # Dry run to verify config without launching:
+        uv run modal run modal_jobs/train.py::run_parallel_sft --config-file experiments.json --dry-run
+    """
+    import json
+
+    if not config_file:
+        print("ERROR: --config-file is required")
+        return
+
+    with open(config_file) as f:
+        experiments = json.load(f)
+
+    if not isinstance(experiments, list) or not experiments:
+        print(f"ERROR: config_file must contain a non-empty JSON list, got: {type(experiments)}")
+        return
+
+    if dry_run:
+        print(f"DRY RUN — would launch {len(experiments)} experiments in parallel:")
+        for exp in experiments:
+            eid = exp.get("experiment_id", "???")
+            rest = {k: v for k, v in exp.items() if k != "experiment_id"}
+            print(f"  {eid}: {rest}")
+        return
+
+    print(f"Launching {len(experiments)} SFT experiments in parallel...")
+    handles = []
+    for exp in experiments:
+        eid = exp.get("experiment_id", "?")
+        h = run_sft_lora.spawn(**exp)
+        handles.append((eid, h))
+        print(f"  Spawned: {eid}  (call_id={h.object_id})", flush=True)
+
+    print(f"\nAll {len(handles)} jobs launched. Collecting results (Ctrl+C to stop watching)...\n")
+    results = {}
+    for eid, h in handles:
+        try:
+            result = h.get()
+            ev = result.get("eval", {})
+            results[eid] = result
+            print(
+                f"  DONE: {eid:<40} "
+                f"GSM8K={ev.get('gsm8k_greedy', 0)*100:.1f}%  "
+                f"MATH={ev.get('math_greedy', 0)*100:.1f}%  "
+                f"SVAMP={ev.get('svamp_greedy', 0)*100:.1f}%",
+                flush=True,
+            )
+        except Exception as e:
+            results[eid] = {"error": str(e)}
+            print(f"  FAILED: {eid} -> {e}", flush=True)
+
+    print(f"\n{'='*75}")
+    print(f"PARALLEL SFT COMPLETE — {len(results)} experiments")
+    print(f"{'Experiment':<42} {'GSM8K':>7} {'MATH':>7} {'SVAMP':>7} {'AMC12':>7}")
+    print("-" * 70)
+    for eid, r in results.items():
+        ev = r.get("eval", {})
+        err = r.get("error")
+        if err:
+            print(f"  {eid:<40} ERROR: {err}")
+        else:
+            print(
+                f"  {eid:<40} "
+                f"{ev.get('gsm8k_greedy', 0)*100:>6.1f}%  "
+                f"{ev.get('math_greedy', 0)*100:>6.1f}%  "
+                f"{ev.get('svamp_greedy', 0)*100:>6.1f}%  "
+                f"{ev.get('amc12_greedy', 0)*100:>6.1f}%"
+            )
 
 
 @app.function(
