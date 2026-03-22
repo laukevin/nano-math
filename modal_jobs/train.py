@@ -569,10 +569,13 @@ def run_eval_sweep(
                 prompt_format=prompt_format,
                 eval_batch_size=eval_batch_size,
             )
-            # strip per_problem to keep results small
-            exp_results["benchmarks"][bench_name] = {
-                k: v for k, v in summary.items() if k != "per_problem"
-            }
+            # keep per_problem for aime (30 problems, critical for analysis); strip for larger benchmarks
+            if bench_name.startswith("aime"):
+                exp_results["benchmarks"][bench_name] = summary
+            else:
+                exp_results["benchmarks"][bench_name] = {
+                    k: v for k, v in summary.items() if k != "per_problem"
+                }
 
         # Save result to volume
         out_path = f"/results/eval_{experiment_id}_v2.json"
@@ -674,6 +677,15 @@ def run_sft_lora(
     sys.path.insert(0, project)
     start_time = time.time()
 
+    # Print experiment header immediately — visible with `modal app logs <id> | head -20`
+    print("=" * 70, flush=True)
+    print(f"EXPERIMENT: {experiment_id}", flush=True)
+    print(f"  data:       {data_source}  size={data_size}  chars=[{min_chars},{max_chars}]", flush=True)
+    print(f"  model:      {base_model}  lora_rank={lora_rank}", flush=True)
+    print(f"  training:   seq={max_seq_len}  batch={batch_size}  epochs={epochs}  lr={lr}", flush=True)
+    print(f"  eval:       {eval_benchmarks}  n={eval_n_problems}  max_tok={eval_max_tokens}", flush=True)
+    print("=" * 70, flush=True)
+
     from scripts.gpu_config import estimate_training_memory_gb, estimate_eval_memory_gb, recommend_batch_size, GPU_SPECS
 
     # --- 1. Prepare data ---
@@ -687,12 +699,28 @@ def run_sft_lora(
     data_path = f"{data_dir}/train.jsonl"
 
     # Check if we need to (re-)download data
+    meta_path = data_path + ".meta"
     need_download = not os.path.exists(data_path)
     if not need_download:
         line_count = sum(1 for _ in open(data_path))
+        has_meta = os.path.exists(meta_path)
+        cached_size = -1
+        if has_meta:
+            import json as _json
+            cached_size = _json.load(open(meta_path)).get("data_size", -1)
         if data_size < 0 and line_count < 1000:
             # Cached file is tiny (likely from a smoke test), re-download full
             print(f"[data] Cached file only has {line_count} samples, re-downloading full dataset")
+            need_download = True
+        elif data_size < 0 and not has_meta:
+            # Cache predates meta system — may have been bounded, re-download to be safe
+            print(f"[data] Cached {line_count} samples has no .meta (pre-dates meta system), "
+                  f"re-downloading full dataset (data_size=-1)")
+            need_download = True
+        elif data_size < 0 and cached_size > 0:
+            # We want the full dataset but the cache was created with a size cap — re-download
+            print(f"[data] Cached {line_count} samples was created with data_size={cached_size}, "
+                  f"re-downloading full dataset (data_size=-1)")
             need_download = True
         elif data_size > 0 and abs(line_count - data_size) > data_size * 0.1:
             # Cached file size doesn't match requested size
@@ -724,8 +752,13 @@ def run_sft_lora(
                       flush=True)
             else:
                 return {"error": "data prep failed"}
+        # Write meta so future runs can detect bounded-vs-unlimited cache mismatches
+        import json as _json
+        with open(meta_path, "w") as _mf:
+            _json.dump({"data_size": data_size, "min_chars": min_chars, "max_chars": max_chars}, _mf)
         vol_data.commit()
     else:
+        line_count = sum(1 for _ in open(data_path))
         print(f"[data] Using cached {data_source} at {data_path} ({line_count} samples)")
 
     # --- 2. GPU memory plan (uses real dataset seq lengths) ---
@@ -765,6 +798,20 @@ def run_sft_lora(
     print(f"  Headroom: {gpu_mem - train_est['total_gb']:.1f}GB training, "
           f"{gpu_mem - eval_est['total_gb']:.1f}GB eval", flush=True)
 
+    # Guard: if min_chars filter is set, check that most data actually fits at max_seq_len.
+    # Rule of thumb: max_chars_that_fit ≈ max_seq_len × 3.5 chars/token.
+    # If min_chars > max_chars_that_fit, virtually every sample will be dropped.
+    if min_chars > 0:
+        max_chars_that_fit = int(max_seq_len * 3.5)
+        if min_chars > max_chars_that_fit * 0.9:
+            print(
+                f"\n  WARNING: min_chars={min_chars} > seq_len capacity "
+                f"({max_chars_that_fit} chars at seq={max_seq_len}). "
+                f"Nearly all samples will be dropped at training time! "
+                f"Use --max-seq-len {int(min_chars / 3.5 / 1024 + 1) * 1024} or higher.",
+                flush=True,
+            )
+
     if train_est['total_gb'] > gpu_mem * 0.95:
         rec = recommend_batch_size(
             mode="train", seq_len=max_seq_len, lora_rank=lora_rank,
@@ -773,10 +820,13 @@ def run_sft_lora(
         print(f"  WARNING: estimate ({train_est['total_gb']:.1f}GB) exceeds 95% of GPU! "
               f"Recommended: batch={rec['recommended_batch_size']}", flush=True)
         if max_tokens_per_batch <= 0:
-            # Target ~80% VRAM. Measured: 5.24 GB/sample at seq=4096 (attention
-            # matrices dominate, scale as seq²). 3× seq_len → ~5.6 samps/batch
-            # → ~79% of A100-40GB. 4× seq_len OOMs (104%).
-            max_tokens_per_batch = max_seq_len * 3
+            # seq≥8192: cap at 1× (batch=1) — logits alone at 3× hit ~7.5GB,
+            # plus gradient-checkpointing spike pushes >40GB on A100-40GB.
+            # seq=4096: 2× is safe (~3.8GB logits), better throughput than 1×.
+            if max_seq_len >= 8192:
+                max_tokens_per_batch = max_seq_len  # batch=1
+            else:
+                max_tokens_per_batch = max_seq_len * 2  # batch~2 at seq4096
             print(f"  AUTO-FIX: switching to token-budget batching "
                   f"(max_tokens_per_batch={max_tokens_per_batch})", flush=True)
 

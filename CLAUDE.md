@@ -145,6 +145,27 @@ uv run modal run modal_jobs/train.py::run_math_eval --model-tag d4 --phase base
 
 Use `--detach` for long runs so the job survives client disconnect.
 
+### Batching rules for run_sft_lora
+
+**For seq_len ≥ 4096, always use `--max-tokens-per-batch` instead of `--batch-size`.**
+Token-budget batching groups similar-length sequences together and automatically scales batch
+size down for long sequences — no OOM, no padding waste.
+
+```bash
+# seq4096: budget ~12288 (3 full-length seqs per batch)
+uv run modal run --detach modal_jobs/train.py::run_sft_lora \
+  --max-seq-len 4096 --max-tokens-per-batch 12288 ...
+
+# seq8192: budget ~8192 (1 full-length seq per batch, accumulate for effective batch=4)
+uv run modal run --detach modal_jobs/train.py::run_sft_lora \
+  --max-seq-len 8192 --max-tokens-per-batch 8192 --gradient-accumulation-steps 4 ...
+```
+
+**Why**: logit memory = batch × seq_len × vocab_size × 2 bytes. At seq=8192, vocab=151K:
+- batch=4 → ~9.3GB logits alone → OOM on A100-40GB
+- token-budget=8192 → max ~2.3GB logits regardless of individual seq lengths
+- A100-40GB handles seq8192 fine at batch=1; A100-80GB handles batch=4+
+
 ### Architecture decisions (things that broke and why)
 - **Image uses `add_local_dir()`** not `modal.Mount` (removed in Modal 1.x)
 - **`modal_jobs/` mounted separately** at `/root/modal_jobs/` — Modal only auto-mounts the entrypoint file, not sibling packages

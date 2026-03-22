@@ -126,6 +126,20 @@ def non_llm_stats(samples: list[dict]) -> dict:
         "28k_plus": sum(1 for l in ls if l >= 28000),
     }
 
+    # Estimate token counts and survival rates at training seq_len thresholds.
+    # Formula matches train.py: chars / 3.5 + 60 tok chat-template overhead.
+    _CHARS_PER_TOK = 3.5
+    _TEMPLATE_TOK = 60
+    tok_estimates = [int(l / _CHARS_PER_TOK) + _TEMPLATE_TOK for l in lengths]
+    seq_filter = {}
+    for seq_len in (2048, 4096, 8192, 16384):
+        kept = sum(1 for t in tok_estimates if t <= seq_len)
+        seq_filter[f"seq{seq_len}"] = {
+            "kept": kept,
+            "dropped": n - kept,
+            "survival_rate": round(kept / n, 3),
+        }
+
     return {
         "n": n,
         "length": {
@@ -136,6 +150,7 @@ def non_llm_stats(samples: list[dict]) -> dict:
             "p75": pct(75), "p90": pct(90), "p95": pct(95), "p99": pct(99),
         },
         "length_buckets": {k: {"count": v, "pct": round(v / n, 3)} for k, v in buckets.items()},
+        "seq_filter": seq_filter,
         "boxed_rate": round(boxed / n, 3),
         "think_tag_rate": round(think_tag / n, 3),
         "coding_content_rate": round(coding / n, 3),
@@ -316,6 +331,55 @@ def phase2_llm_consistency(
 # Main
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Deduplication analysis
+# ---------------------------------------------------------------------------
+
+def dedup_stats(samples: list[dict]) -> dict:
+    """Count unique problems and solutions-per-problem distribution.
+
+    Uses first 200 chars of problem text as dedup key (handles minor whitespace).
+    """
+    problem_counts: dict[str, int] = {}
+    for s in samples:
+        key = s["problem"].strip()[:200]
+        problem_counts[key] = problem_counts.get(key, 0) + 1
+
+    n_total = len(samples)
+    counts = sorted(problem_counts.values(), reverse=True)
+    n_unique = len(counts)
+
+    if not counts:
+        return {}
+
+    dist = {
+        "1": sum(1 for c in counts if c == 1),
+        "2_5": sum(1 for c in counts if 2 <= c <= 5),
+        "6_20": sum(1 for c in counts if 6 <= c <= 20),
+        "21_50": sum(1 for c in counts if 21 <= c <= 50),
+        "51_plus": sum(1 for c in counts if c > 50),
+    }
+
+    top5 = sorted(problem_counts.items(), key=lambda x: -x[1])[:5]
+
+    return {
+        "n_total": n_total,
+        "n_unique_problems": n_unique,
+        "duplication_ratio": round(n_total / n_unique, 2),
+        "solutions_per_problem": {
+            "min": min(counts),
+            "max": max(counts),
+            "mean": round(sum(counts) / n_unique, 1),
+            "median": counts[n_unique // 2],
+        },
+        "solutions_distribution": dist,
+        "top_problems": [
+            {"count": cnt, "problem_prefix": prob[:100]}
+            for prob, cnt in top5
+        ],
+    }
+
+
 def load_samples(dataset: str, n: int, min_chars: int = -1, max_chars: int = -1) -> list[dict]:
     from scripts.data.normalize_dataset import DATASETS, NORMALIZERS
     from itertools import chain as ichain
@@ -370,6 +434,12 @@ def main():
     parser.add_argument("--phase2-size", type=int, default=500, help="Samples for Phase 2")
     parser.add_argument("--phase1-only", action="store_true", help="Skip Phase 2")
     parser.add_argument("--no-llm", action="store_true", help="Skip all LLM calls (stats only)")
+    parser.add_argument(
+        "--dedup-size", type=int, default=0,
+        help="Load this many samples for dedup analysis (unique problems / solutions per problem). "
+             "Use a large value for repetitive datasets (e.g. --dedup-size 50000 for dartmath). "
+             "0 = reuse phase2 samples only.",
+    )
     parser.add_argument("--min-chars", type=int, default=-1, help="Only include samples with total chars >= this")
     parser.add_argument("--max-chars", type=int, default=-1, help="Only include samples with total chars <= this")
     parser.add_argument(
@@ -401,11 +471,18 @@ def main():
 
     print("[Phase 1] Computing non-LLM stats...", flush=True)
     p1_stats = non_llm_stats(p1_samples)
+    sf = p1_stats["seq_filter"]
     print(
         f"  boxed={p1_stats['boxed_rate']:.0%}  think={p1_stats['think_tag_rate']:.0%}  "
         f"coding={p1_stats['coding_content_rate']:.0%}  "
         f"r1_opener={p1_stats['r1_opener_rate']:.0%}  "
         f"bold_headers={p1_stats['bold_headers_rate']:.0%}",
+        flush=True,
+    )
+    print(
+        f"  seq_filter: seq2048={sf['seq2048']['survival_rate']:.0%}  "
+        f"seq4096={sf['seq4096']['survival_rate']:.0%}  "
+        f"seq8192={sf['seq8192']['survival_rate']:.0%}",
         flush=True,
     )
 
@@ -421,6 +498,7 @@ def main():
         )
 
     # --- Phase 2: 500 samples ---
+    p2_samples: list[dict] = []
     p2_stats = None
     p2_consistency = None
 
@@ -448,6 +526,27 @@ def main():
                 flush=True,
             )
 
+    # --- Dedup analysis ---
+    dedup = None
+    if not args.phase1_only:
+        if args.dedup_size > 0 and args.dedup_size > args.phase2_size:
+            print(f"\n[Dedup] Loading {args.dedup_size} samples for dedup analysis...", flush=True)
+            dedup_samples = load_samples(args.dataset, args.dedup_size, args.min_chars, args.max_chars)
+            print(f"  Loaded {len(dedup_samples)} samples", flush=True)
+        else:
+            dedup_samples = p2_samples
+
+        dedup = dedup_stats(dedup_samples)
+        print(
+            f"[Dedup] unique={dedup['n_unique_problems']}  "
+            f"total={dedup['n_total']}  "
+            f"ratio={dedup['duplication_ratio']}x  "
+            f"sols/prob: min={dedup['solutions_per_problem']['min']} "
+            f"mean={dedup['solutions_per_problem']['mean']} "
+            f"max={dedup['solutions_per_problem']['max']}",
+            flush=True,
+        )
+
     # --- Build output ---
     result = {
         "dataset": args.dataset,
@@ -466,6 +565,7 @@ def main():
             "non_llm_stats": p2_stats,
             "consistency_check": p2_consistency,
         } if not args.phase1_only else None,
+        "dedup": dedup,
     }
 
     with open(out_path, "w") as f:

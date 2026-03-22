@@ -317,21 +317,25 @@ def run_eval(model, tokenizer, problems, max_tokens=256, prompt_format="chat_thi
         if correct:
             n_correct += 1
 
-        results.append(
-            {
-                "id": prob["id"],
-                "correct": correct,
-                "extracted": extracted,
-                "ground_truth": gt,
-                "output_preview": output[:200],
-            }
-        )
+        is_aime = prob["source"].startswith("aime")
+        entry: dict = {
+            "id": prob["id"],
+            "correct": correct,
+            "extracted": extracted,
+            "ground_truth": gt,
+            "output_preview": output[:500] if is_aime else output[:200],
+        }
+        if is_aime:
+            entry["problem"] = prob["problem"]
+        results.append(entry)
 
         status = "CORRECT" if correct else ("EXTRACTED" if extracted else "NO_ANS")
         print(
             f"  [{i+1:3d}/{len(problems)}] {status:9s} "
             f"gt={gt:>8s} pred={str(extracted):>8s}"
         )
+        if is_aime and correct:
+            print(f"  *** AIME SOLVED [{prob['id']}] ans={gt} ***", flush=True)
 
     n = len(problems)
     accuracy = n_correct / n if n else 0

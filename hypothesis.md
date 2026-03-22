@@ -105,131 +105,140 @@ Updated as results come in. Read alongside `next_steps.md` for full context.
 - acemath→R1 curriculum: makes things worse, don't retry
 - MoT 7K-14K: too easy after seq4096 filtering
 
----
+### Dartmath-50k AIME source — deep-dive (2026-03-21)
 
-## Active Experiments
+**Finding**: dartmath AIME signal is not generalization — it's memorization depth on 1 problem.
 
-### E1: `sft-stratos-seq4096`
+| Dataset | Unique problems | Total rows | Ratio | Max sols/prob |
+|---------|----------------|------------|-------|---------------|
+| dartmath-50k slice | 1067 | 50K | 46.9× | 270× |
+| stratos | 9651 | 10K | 1.04× | 8× |
+| acemath | 9993 | 10K | 1.0× | 2× |
+| MoT 14K+ | 9965 | 10K | 1.0× | 3× |
 
-**What**: Stratos full dataset (~17K samples), seq_len=4096, from base, eval_max_tokens=2048.
+Competition-keyword problems in dartmath-50k: **2 unique problems, 190 rows**.
+- 1 asy-geometry problem: **188 solutions** (the entire AIME signal source)
+- 1 generic "field day competition" problem: 2 solutions
 
-**Why this is #1 priority**: The only broken dimension is seq_len. Stratos is the cleanest R1 test —
-quality=4.96, exp=8, 100% consistent, 100% is_math. p50=9.8K chars ≈ 2450 tokens, p75=14.7K chars ≈
-3675 tokens. Roughly 75% of traces fit at 4096. This directly re-runs sft-stratos-10k with the fix.
+The model achieves 7% AIME (2/30 problems) because it saw one competition-geometry problem solved 188 ways. This is depth-of-memorization, not R1-style exploratory generalization. The signal doesn't extrapolate to new AIME problem types.
 
-**Hypothesis**: Stratos at seq4096 produces **AIME ≥ 7%** (at least matching dartmath-50k's best result)
-because:
-- Exploratory reasoning (exp=8) teaches search strategies, not just answer patterns
-- Competition-level difficulty (diff=7) exposes the model to AMC/AIME-class problems
-- 17K samples is enough signal (dartmath-50k got 7% AIME with 50K short CoT samples)
-
-**Expected MATH**: 40-55% (regression from base 59%). Style shift (step-by-step → exploratory) will hurt
-MATH, but this is the tradeoff. AIME signal matters more here.
-
-**Expected cost**: ~$1-2 on A100.
-
-**What this unlocks**:
-- YES → validates R1 hypothesis, green-lights E4/E5/E7
-- NO (AIME=0%) → seq_len was not the only problem. Check if eval_max_tokens is too short, inspect
-  generation samples for length, consider model capacity as bottleneck.
+**Implication for next experiments**: stratos/MoT are the right AIME path (exploratory reasoning, diverse problems). Dartmath's 7% is a ceiling artifact, not a training signal to build on.
 
 ---
 
-### E2: `sft-mot7k14k-10k-seq4096`
+## Completed Experiments
 
-**What**: MoT 7K-14K chars bucket, 10K samples, seq_len=4096, from base, eval_max_tokens=2048.
+### E1: `sft-stratos-seq4096` — COMPLETE
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 57% | 45% | 42% | **3.3%** |
 
-**Why this is #2 priority**: We have `sft-mot-base-phase1` (2874 samples, seq=2048, MATH=44%, AIME=0%).
-That experiment used too few samples AND the upper end of the 7K-14K bucket (traces ~7K chars ≈ ~1750 tok)
-may have been marginally truncated at 2048. This 10K run at proper seq4096 tests both levers at once.
-
-The 7K-14K bucket scores quality=5.0 (perfect in phase2 consistency check), exp=8, diff=7.
-All traces fit cleanly within 4096 tokens (7K chars ≈ 1750 tok, 14K chars ≈ 3500 tok). Zero drops expected.
-
-**Hypothesis**: 10K MoT at seq4096 produces **AIME ≥ 3%** and **MATH ≥ 40%** (better than the 2874-sample run).
-The tiny phase1 run showed 44% MATH — more data should narrow the regression. AIME gain requires the
-exploratory reasoning signal to transfer.
-
-**Comparison**: vs E1 (stratos), this tests whether MoT's lower avg difficulty (diff=7 vs stratos diff=7)
-and the specific bucket selection matter. Also tests whether the "phase1" bucket is the right starting point
-vs the full 14K+ bucket (E4/E5).
-
-**Expected cost**: ~$1-2 on A100.
-
-**What this unlocks**:
-- With E1: establishes "R1 from base" baseline for both datasets
-- Informs whether MoT 14K+ bucket (harder, longer) is worth the seq_len overhead (E4 vs E2)
-- If MATH regression is worse than E1 → suggests MoT < 7K-14K is suboptimal starting point
+**What**: Stratos ~7,175 samples (seq4096 survival of full 17K), from base.
+**Verdict**: R1 hypothesis partially validated. Seq_len fix (2048→4096) gave first AIME signal (3.3%). But expected ≥7%; hit 3.3% ceiling.
+**Key finding**: Dataset analysis shows stratos has 70% survival at seq4096. E1 kept the shortest 70% of stratos. The hardest 30% (longest traces) have never been trained on.
 
 ---
 
-### E3: `sft-acemath-stratos-curriculum`
+### E2: `sft-mot7k14k-10k-seq4096` — COMPLETE
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 43% | 30% | 27% | 0% |
 
-**What**: Start from `sft-acemath-10k` adapter, continue training on stratos full dataset (~17K),
-seq_len=4096, eval_max_tokens=2048. Uses `init_adapter=/checkpoints/sft-acemath-10k`.
-
-**Why this is #3 priority**: This is the "jackpot" experiment. If it works, we get both:
-- acemath's +7pp MATH advantage (66% vs base 59%)
-- stratos's exploratory reasoning → AIME signal
-
-Runs in parallel with E1/E2 — acemath-10k adapter already exists on Modal.
-
-**Why stratos (not MoT 14K+) for curriculum**:
-- Stratos median ≈ 2450 tokens — less style shock than MoT 14K+ (median ≈ 7000 tokens)
-- The acemath→openthoughts curriculum showed catastrophic forgetting (66→36% MATH). The hypothesis is
-  that the short-medium traces in stratos are less disruptive than the very long MoT traces.
-- Stratos is also being tested from base in E1 — we'll have a direct comparison (base→stratos vs acemath→stratos).
-
-**Hypothesis**: MATH stays at **60-66%** (acemath gains partially preserved) and **AIME ≥ 3%**. The
-curriculum avoids catastrophic forgetting because stratos's traces are ~2-4x shorter than MoT 14K+ and
-the acemath model's step-by-step foundation can "absorb" the exploratory format more gradually.
-
-**Risk**: acemath's structured CoT (exp=1, step_by_step=9) is maximally different from stratos's exploratory
-style (exp=8). Even if traces are medium-length, the output distribution shift is severe. We may still see
-forgetting (MATH < 50%). The prior case was openthoughts which had format incompatibility AND wrong domain.
-Stratos is math-only, so format is the only issue.
-
-**Expected cost**: ~$1-2 on A100.
-
-**What this unlocks**:
-- If MATH ≥ 60% AND AIME > 0% → this is our best model. Try acemath→MoT curriculum next.
-- If MATH drops to ~40-50% → curriculum partially works but style mismatch hurts. Try shorter-trace MoT
-  (E2's 7K-14K bucket) as phase 2 instead.
-- If MATH < 40% → catastrophic forgetting again. Need to investigate learning rate, epochs, or mix.
+**What**: MoT 7K-14K bucket, 10K samples, seq_len=4096, from base.
+**Verdict**: Underperforms stratos on every metric. Only 6218 of 10K survived — the lower end of the bucket. Stratos dominates (+15pp MATH, +3.3pp AIME). MoT 7K-14K is not the right bucket.
 
 ---
 
-## Pending Experiments (gated on E1/E2/E3 results)
+### E3: `sft-acemath-stratos-curriculum` — COMPLETE
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 12% | 33% | 33% | 0% |
 
-### E4: `sft-mot14k-5k-seq4096`
-MoT 14K+ chars (hardest bucket: diff=8, exp=9), 5K samples, seq_len=4096. ~40-50% of traces drop (too long).
-**Gate**: run after E1 or E2 confirms AIME > 0% from R1 training.
-**Hypothesis**: harder problems + more exploratory traces → higher AIME than E2, at further MATH cost.
+**What**: Start from acemath-10k adapter, continue on stratos seq4096.
+**Verdict**: Curriculum actively hurt. MATH collapsed from acemath's 66% to 33% — worse than E1 (42%) and even below base (59%). acemath (exp=1) and stratos (exp=8) are maximally incompatible styles. Adapter init is worse than cold start.
 
-### E5: `sft-mot14k-5k-seq8192`
-Same as E4 but seq_len=8192. ~70% of traces kept. Tests whether the longer traces (the ones E4 drops)
-carry additional AIME signal. Slower and more memory-intensive.
-**Gate**: run alongside E4, compare: AIME(E5) vs AIME(E4). If similar → seq4096 is sufficient.
+---
 
-### E6: `sft-acemath-mot7k-curriculum`
-acemath-10k → MoT 7K-14K bucket, seq_len=4096.
-**Gate**: run if E3 (acemath-stratos) shows catastrophic forgetting (MATH < 50%).
-The shorter MoT traces may be less disruptive than stratos's long traces.
-**Alternative**: if E3 succeeds, skip this and try acemath→MoT14k directly.
+### E4: `sft-mot14k-5k-seq4096` — FAILED (data-seq_len mismatch)
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 47% | 59% | 59% | 0% |
 
-### E7: `sft-acemath-mot14k-curriculum`
-acemath-10k → MoT 14K+ bucket, seq_len=8192.
-**Gate**: run only if E3 (acemath-stratos) succeeds (MATH ≥ 60%, AIME > 0%).
-**Hypothesis**: hardest problems as phase 2 from strong acemath foundation → best AIME yet.
+**Verdict: Invalid — only 23/5000 samples survived.** MoT 14K+ has `min_chars=14000`; seq4096 handles ~14,336 chars max. Nearly 0% survival. Model is unchanged from base (MATH=59%). Lesson: never run `bucket_min_chars > seq_len × 3.5`.
+
+---
+
+### E8: `sft-stratos-full-17k-seq4096` — COMPLETE
+| SVAMP | GSM8K | MATH | AIME |
+|-------|-------|------|------|
+| 47% | 37% | 39% | **3.3%** |
+
+**What**: Full stratos, all 9,430 seq4096-surviving samples (vs E1's 7,175), from base.
+**Hypothesis was**: more stratos data → AIME > 3.3%.
+**Verdict: FAILED.** AIME flat at 3.3%. All other metrics *worse* than E1 (−10pp SVAMP, −8pp GSM8K, −3pp MATH).
+**Why it failed**: The extra ~2,255 samples vs E1 are not harder traces — they're just more samples from the same distribution. The 30% of stratos dropped at seq4096 (the longest/hardest traces) were dropped in both E1 and E8. More seq4096 samples can't add signal that seq4096 structurally excludes.
+**Conclusion**: More R1 traces at the same seq_len does not improve AIME. The ceiling is not about sample count.
+
+---
+
+### E5: `sft-mot14k-5k-seq8192` — TRAINING COMPLETE, EVAL PENDING
+**What**: MoT 14K+ bucket, ~5K samples, seq_len=8192, from base. Checkpoint: `sft-mot14k-5k-seq8192`.
+**Tests**: do the long hard MoT traces (64% survival at seq8192 vs 0% at seq4096) carry AIME signal?
+
+---
+
+### E9: `sft-mot-phase1-then-14k-seq8192` — TRAINING COMPLETE, EVAL PENDING
+**What**: Start from `sft-mot-base-phase1` (MoT 0-7K phase), continue on MoT 14K+ seq8192.
+**Tests**: does curriculum on MoT (easy→hard within same dataset style) beat cold start (E5)?
+Checkpoint: `sft-mot-phase1-then-14k-seq8192`.
+
+---
+
+## Wave 3 Summary (2026-03-21)
+
+| Experiment | SVAMP | GSM8K | MATH | AIME | Verdict |
+|---|---|---|---|---|---|
+| E1: stratos-7175-seq4096 | 57% | 45% | 42% | **3.3%** | ✅ First AIME signal |
+| E8: stratos-9430-seq4096 | 47% | 37% | 39% | **3.3%** | ❌ More data doesn't scale AIME |
+| E4: MoT14k-seq4096 | 47% | 59% | 59% | 0% | ❌ Invalid — 23/5000 samples survived |
+| E2: MoT7k-14k-seq4096 | 43% | 30% | 27% | 0% | ❌ Wrong bucket, too easy |
+| E3: acemath→stratos | 12% | 33% | 33% | 0% | ❌ Catastrophic forgetting |
+| E5: MoT14k-seq8192 | — | — | — | ? | ⏳ Eval pending |
+| E9: phase1→MoT14k-seq8192 | — | — | — | ? | ⏳ Eval pending |
+
+**Unexpected finding**: `acemath-think-10k-v2` (not in Wave 3 plan) also hits **3.3% AIME** with dramatically better easy benchmarks (85% SVAMP, 70% GSM8K). Think traces without R1 style match stratos on AIME.
+
+| acemath-think-10k-v2 | 85% | 70% | 62% | **3.3%** | ✅ Ties stratos, much better easy bench |
+
+**Confirmed dead ends:**
+- More stratos at seq4096 (E8): AIME plateau at 3.3%, no scaling
+- acemath→R1 curriculum (E3): catastrophic forgetting, avoid
+- MoT 7K-14K bucket (E2): not enough difficulty after seq4096 filtering
+- MoT 14K+ at seq4096 (E4): structurally incompatible, 0% survival
+
+**Open questions:**
+1. Does MoT 14K+ at seq8192 produce AIME signal? (E5/E9 pending)
+2. Does stratos at seq8192 (89% survival vs 70% at seq4096) break the 3.3% ceiling? (untested)
+3. Why does acemath-think tie stratos on AIME despite different style? Is think-tag format sufficient?
+
+---
+
+### E6: `sft-acemath-mot7k-curriculum` — DEAD END (skip)
+Gate: E3 MATH < 50%. E3 scored 33% — gate triggered. Incompatibility is fundamental (acemath exp=1 vs MoT exp=8). Skipped.
+
+### E7: `sft-acemath-mot14k-curriculum` — BLOCKED
+Gate: E3 MATH ≥ 60% AND AIME > 0%. E3 failed (33% MATH, 0% AIME). E7 is blocked until we find a
+curriculum approach that doesn't cause catastrophic forgetting. Not pursuing yet.
 
 ---
 
 ## Key Empirical Priors (from dataset survey)
 
 ### Why exploratory score matters for AIME
-- All datasets with exp ≤ 2 (acemath, dartmath, metamath, openmathinstruct2): AIME = 0%
-- dartmath-50k (exp=1, but 50K hard problems): AIME = 7% — volume of hard problems creates signal
-- MoT and stratos (exp=8-9): untested at proper seq_len — the primary hypothesis we're testing
+- All datasets with exp ≤ 2 (acemath, dartmath, metamath, openmathinstruct2): AIME = 0% (except dartmath-50k = memorization artifact)
+- MoT and stratos (exp=8-9) at proper seq_len: both produce 3.3% AIME — confirmed
+- **acemath-think** (exp=1 but has `<think>` tags): also 3.3% AIME — think-tag format may matter independently of R1 style
+- **AIME ceiling at 3.3%** across all tested approaches. Not broken yet.
 
 ### Why terse data hurts (don't use numinamath15 or MATH train set)
 - `sft-math` (human terse proofs, median 162 chars): MATH = 19% (−40pp from base)
@@ -247,14 +256,14 @@ acemath-10k → MoT 14K+ bucket, seq_len=8192.
 
 ---
 
-## Decision Rules
+## Decision Rules (updated 2026-03-21)
+
+**AIME ceiling is 3.3% across all approaches. Next levers to try:**
 
 | Condition | Next action |
 |-----------|-------------|
-| E1 AIME ≥ 7% | Launch E4+E5 in parallel |
-| E1 AIME = 3% | Launch E4 only (E5 if budget allows) |
-| E1 AIME = 0% | Inspect generation samples — is model generating long chains or short answers? |
-| E3 MATH ≥ 60% AND AIME > 0% | This is the winner; launch E7 |
-| E3 MATH 50-60% | Partial success; try E6 (shorter traces) |
-| E3 MATH < 50% | Catastrophic forgetting again; try lower LR or fewer epochs for phase 2 |
-| E2 MATH >> E1 MATH | MoT 7K-14K is better foundation than stratos; run MoT curriculum (E6) |
+| E5/E9 AIME > 3.3% | MoT 14K+ seq8192 breaks ceiling — scale it up |
+| E5/E9 AIME = 3.3% | Ceiling is not about trace length; try stratos seq8192 |
+| E5/E9 AIME = 0% | MoT doesn't generalise to AIME even at seq8192; stratos is the only R1 path |
+| Any model AIME > 3.3% | Use it as GRPO init — RL reward likely needed to push past 10% |
+| All seq8192 experiments flat at 3.3% | Model capacity bottleneck; try rank 32 or 1.5B base model |

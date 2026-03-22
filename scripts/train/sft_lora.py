@@ -395,6 +395,26 @@ def main():
     )
     args = parser.parse_args()
 
+    # Auto-enable token-budget batching for large seq_len if not explicitly set.
+    # Logit memory = batch × seq_len × vocab × 2 bytes. At seq=8192, vocab=151K:
+    #   budget=8192  (1 full seq) → ~2.5GB logits  — safe on any A100
+    #   budget=12288 (1.5 seqs)  → ~3.8GB logits  — safe on A100-40GB
+    #   budget=24576 (3 seqs)    → ~7.5GB logits  — OOMs on A100-40GB (28GB overhead)
+    # During gradient-checkpointing backward, activations are recomputed, temporarily
+    # spiking memory. Cap at 1× seq_len for seq≥8192 (batch=1, use grad_accum).
+    # At seq=4096, 2× is safe: logits ~3.8GB, well within A100-40GB.
+    if args.max_tokens_per_batch <= 0 and args.max_seq_len >= 4096:
+        if args.max_seq_len >= 8192:
+            args.max_tokens_per_batch = args.max_seq_len  # batch=1 per step
+        else:
+            args.max_tokens_per_batch = args.max_seq_len * 2  # batch~2 at seq4096
+        print(
+            f"[auto] seq_len={args.max_seq_len} → token-budget batching "
+            f"(max_tokens_per_batch={args.max_tokens_per_batch}). "
+            f"Pass --max-tokens-per-batch explicitly to override.",
+            flush=True,
+        )
+
     start_time = time.time()
 
     # Load model + tokenizer

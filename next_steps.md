@@ -1,18 +1,21 @@
 # Next Steps — math-nano (Seoul)
 
-## Where we are (as of 2026-03-19)
+## Where we are (as of 2026-03-21)
 
 ### Phase 1: nanochat from-scratch (complete)
 - **Model**: depth-8 (125M params), pretrained on FineWeb-edu (~524M tokens)
 - **Best result**: SVAMP 6%, GSM8K 0-2% — ceiling hit at this model size
 - **Lesson**: sub-200M models trained from scratch can't chain multi-step math reasoning
 
-### Phase 2: Qwen3-0.6B + LoRA SFT (pipeline working, baseline in progress)
+### Phase 2: Qwen3-0.6B + LoRA SFT (active — Wave 3 complete, Wave 4 pending)
 - **Base model**: Qwen/Qwen3-0.6B-Base (606M params, 36T tokens pretraining)
 - **Method**: LoRA SFT (rank 16, 1.66% trainable params = 10M params)
-- **Pipeline**: data prep → SFT → eval (all 4 tiers) → registry, automated on Modal
-- **Prompt format**: `chat_think` (Qwen3 thinking mode)
-- **Baseline run**: full GSM8K (7473), 3 epochs, A100 — in progress on Modal
+- **Pipeline**: data prep → SFT → eval (SVAMP/GSM8K/MATH/AIME 2025) → registry, automated on Modal
+- **Best models so far**:
+  - `acemath-think-10k-v2`: SVAMP 85%, GSM8K 70%, MATH 62%, AIME **3.3%** — best overall
+  - `stratos-seq4096` (E1): SVAMP 57%, GSM8K 45%, MATH 42%, AIME **3.3%** — best R1-only
+- **AIME ceiling**: 3.3% across all approaches. Not yet broken.
+- **Currently running**: E5 (`sft-mot14k-5k-seq8192`) and E9 (`sft-mot-phase1-then-14k-seq8192`) — training complete, eval in progress
 
 ## Infrastructure
 
@@ -392,7 +395,40 @@ Run the top 2-3 sources from Wave 1 at multiple sizes. Save checkpoints to plot 
 | `sft-{best}-30k` | winner | 30K | 3 | |
 | `sft-{best}-100k` | winner | 100K | 1 | Single epoch, more data |
 
-### Wave 3: Data mixtures
+### Wave 3: R1-style data at proper seq_len (2026-03-21)
+
+**Goal**: Does training on complete R1 traces (not truncated) produce AIME signal beyond 3.3%?
+
+**Key findings:**
+
+| Experiment | SVAMP | GSM8K | MATH | AIME | Notes |
+|---|---|---|---|---|---|
+| base-no-sft | 24% | 40% | **59%** | 0% | MATH ceiling from pretraining |
+| acemath-think-10k-v2 | **85%** | **70%** | 62% | **3.3%** | Best overall — think traces matter |
+| stratos-seq4096 (E1) | 57% | 45% | 42% | **3.3%** | First AIME signal, R1 style |
+| stratos-full-17k-seq4096 (E8) | 47% | 37% | 39% | **3.3%** | More data doesn't scale AIME |
+| MoT-base-phase1 | 61% | 46% | 44% | 0% | Short MoT traces, no AIME |
+| MoT-5k-seq4096 (E4) | 47% | 59% | 59% | 0% | Invalid — 23/5K survived seq filter |
+| MoT-7k-14k-seq4096 (E2) | 43% | 30% | 27% | 0% | Wrong bucket, too easy |
+| acemath→stratos (E3) | 12% | 33% | 33% | 0% | Catastrophic forgetting |
+| MoT14k-seq8192 (E5) | — | — | — | ⏳ | Eval pending |
+| phase1→MoT14k-seq8192 (E9) | — | — | — | ⏳ | Eval pending |
+
+**Critical findings:**
+- **MATH eval is not a useful signal**: base model already scores 59% MATH. Any model that doesn't beat 59% on MATH is effectively worse than no SFT at all. AIME is the only discriminating metric.
+- **Seq_len survival rates** (from `analyze_dataset.py` on 500 samples):
+  - stratos: seq4096=70%, seq8192=89% — 19% more complete traces at seq8192 never been trained on
+  - MoT 14K+: seq4096=1%, seq8192=64% — seq4096 is structurally incompatible
+- **E8 lesson**: 9,430 vs 7,175 stratos samples at same seq_len = no AIME gain. The extra samples are same distribution, not harder traces. The 30% dropped at seq4096 are dropped in both E1 and E8.
+- **acemath-think surprise**: non-R1 data with think tags ties R1 stratos on AIME (3.3%). The discriminating variable may be think-tag format, not R1-style openers.
+
+**Next experiments (priority order):**
+1. **Stratos at seq8192** — keeps 89% vs 70% at seq4096. The 19% additional complete hard traces have never been seen. Cleaner test than MoT because stratos is proven to produce AIME signal.
+2. **E5/E9 results** (pending) — if MoT 14K+ seq8192 > 3.3% AIME, scale it up. If flat, stratos seq8192 is the path.
+3. **acemath-think + stratos mixture** — both hit 3.3% AIME independently; do they combine? Same think-tag format, different problem styles.
+4. **GRPO/RL** — SFT may be hitting a fundamental ceiling at 3.3% for this model size. RL with outcome reward is the next lever.
+
+### Wave 4: Data mixtures
 **Goal**: Do blends beat single sources? Strategy: blend easy, blend medium, keep hard.
 Based on Wave 1 + 2 findings — fill in best sources per tier.
 
